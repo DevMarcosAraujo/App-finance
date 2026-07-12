@@ -1,0 +1,508 @@
+// ============================================================================
+// App-finance — schema.prisma
+// Módulos: Core financeiro | IR Pessoa Física (Carnê-Leão) | PJ (MEI/ME)
+//
+// Princípio de design: nenhuma regra fiscal (alíquota, faixa, teto) fica
+// hardcoded no código. Tudo que muda por lei ou por ano-calendário vive em
+// tabelas *Parametro* / *Tabela*, editáveis via painel admin, sem deploy.
+// Isso é o que permite o sistema virar SaaS multi-usuário sem reescrever
+// nada quando a legislação mudar ou quando um novo usuário tiver uma
+// atividade/Anexo diferente.
+// ============================================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================================
+// ENUMS
+// ============================================================================
+
+enum PlanoTipo {
+  INDIVIDUAL
+  FAMILIA
+}
+
+enum WorkspaceRole {
+  DONO
+  MEMBRO
+}
+
+enum TransacaoTipo {
+  RECEITA
+  DESPESA
+}
+
+enum EmissorTipo {
+  CPF
+  CNPJ
+}
+
+enum TipoDocumentoFiscal {
+  NOTA_FISCAL
+  RECIBO
+}
+
+enum CategoriaDedutivel {
+  SAUDE
+  EDUCACAO
+  PREVIDENCIA_PRIVADA
+  OUTROS_NAO_DEDUTIVEL
+}
+
+enum TipoBem {
+  IMOVEL
+  VEICULO
+  CONTA_INVESTIMENTO
+  SALDO_CONTA
+  OUTROS
+}
+
+enum TipoRendimentoAutonomo {
+  HONORARIO
+  ALUGUEL_PF
+  PENSAO_RECEBIDA
+  EXTERIOR
+}
+
+enum TipoDeducaoCarneLeao {
+  INSS_AUTONOMO
+  PENSAO_JUDICIAL
+  PGBL
+  LIVRO_CAIXA
+}
+
+enum StatusApuracao {
+  PENDENTE
+  PAGO
+  ATRASADO
+}
+
+enum RegimeEmpresa {
+  MEI
+  SIMPLES_ME
+}
+
+enum AtividadeEmpresa {
+  COMERCIO
+  INDUSTRIA
+  SERVICO
+  COMERCIO_SERVICO
+}
+
+enum AnexoSimples {
+  I
+  II
+  III
+  IV
+  V
+}
+
+enum TipoRelatorio {
+  MENSAL
+  BIMESTRAL
+  SEMESTRAL
+  ANUAL
+}
+
+// ============================================================================
+// CORE — usuários, workspace (conta individual/família), plano
+// ============================================================================
+
+model Usuario {
+  id            String   @id @default(uuid())
+  nome          String
+  email         String   @unique
+  cpf           String   @unique
+  senhaHash     String
+  criadoEm      DateTime @default(now())
+
+  membros            WorkspaceMembro[]
+  transacoes         Transacao[]
+  documentosFiscais  DocumentoFiscal[]
+  bensDireitos       BemDireito[]
+  rendimentosAuton   RendimentoAutonomo[]
+  deducoesCarneLeao  DeducaoCarneLeao[]
+  livroCaixa         LivroCaixaLancamento[]
+  apuracoesCarneLeao ApuracaoMensalCarneLeao[]
+  empresas           Empresa[]
+
+  @@map("usuarios")
+}
+
+model Plano {
+  id                String    @id @default(uuid())
+  tipo              PlanoTipo
+  nome              String
+  precoBase         Decimal   @db.Decimal(10, 2)
+  precoPorMembro    Decimal?  @db.Decimal(10, 2) // custo adicional por membro extra (plano família)
+  limiteMembros     Int?
+
+  workspaces Workspace[]
+
+  @@map("planos")
+}
+
+model Workspace {
+  id        String   @id @default(uuid())
+  nome      String
+  planoId   String
+  criadoEm  DateTime @default(now())
+
+  plano       Plano             @relation(fields: [planoId], references: [id])
+  membros     WorkspaceMembro[]
+  transacoes  Transacao[]
+  relatorios  RelatorioGerado[]
+
+  @@map("workspaces")
+}
+
+model WorkspaceMembro {
+  id          String        @id @default(uuid())
+  workspaceId String
+  usuarioId   String
+  role        WorkspaceRole @default(MEMBRO)
+  entrouEm    DateTime      @default(now())
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  usuario   Usuario   @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, usuarioId])
+  @@map("workspace_membros")
+}
+
+model Categoria {
+  id        String   @id @default(uuid())
+  nome      String
+  cor       String?
+  icone     String?
+  sistema   Boolean  @default(false) // categoria padrão do sistema vs criada pelo usuário
+
+  transacoes Transacao[]
+
+  @@map("categorias")
+}
+
+model Transacao {
+  id           String        @id @default(uuid())
+  workspaceId  String
+  usuarioId    String        // quem registrou (base do dashboard individual x conjunto)
+  categoriaId  String?
+  tipo         TransacaoTipo
+  valor        Decimal       @db.Decimal(12, 2)
+  descricao    String?
+  data         DateTime
+  criadoEm     DateTime      @default(now())
+
+  workspace Workspace  @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  usuario   Usuario    @relation(fields: [usuarioId], references: [id])
+  categoria Categoria? @relation(fields: [categoriaId], references: [id])
+
+  @@index([workspaceId, data])
+  @@index([usuarioId, data])
+  @@map("transacoes")
+}
+
+model RelatorioGerado {
+  id             String        @id @default(uuid())
+  workspaceId    String
+  tipo           TipoRelatorio
+  periodoInicio  DateTime
+  periodoFim     DateTime
+  arquivoPdfUrl  String
+  geradoEm       DateTime      @default(now())
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@map("relatorios_gerados")
+}
+
+// ============================================================================
+// MÓDULO IR — PESSOA FÍSICA (declaração anual + carnê-leão)
+// ============================================================================
+
+// Parâmetros fiscais de pessoa física, versionados por ano-calendário.
+// Nunca hardcode faixa de isenção / teto de dedução no código — sempre lê daqui.
+model ParametroFiscalPF {
+  id                     String @id @default(uuid())
+  anoCalendario          Int    @unique
+
+  faixaIsencaoMensal     Decimal @db.Decimal(10, 2) // ex: 5000.00 em 2026
+  faixaReducaoAte        Decimal @db.Decimal(10, 2) // ex: 7350.00 em 2026
+  tetoEducacaoAnual      Decimal @db.Decimal(10, 2) // ex: 3561.50
+  valorDependenteMensal  Decimal @db.Decimal(10, 2) // ex: 189.59
+  descontoSimplificadoMensal Decimal @db.Decimal(10, 2)
+  limiteObrigatoriedadeDeclaracao Decimal @db.Decimal(10, 2) // ex: 35584.00
+
+  // Tabela progressiva mensal do IR, guardada como JSON:
+  // [{ ate: 2428.80, aliquota: 0, parcelaDeduzir: 0 }, { ate: 2826.65, aliquota: 0.075, ... }, ...]
+  tabelaProgressivaMensal Json
+
+  criadoEm DateTime @default(now())
+
+  @@map("parametros_fiscais_pf")
+}
+
+model DocumentoFiscal {
+  id               String               @id @default(uuid())
+  usuarioId        String               // titular do gasto (quem pode deduzir)
+  emissorTipo      EmissorTipo
+  emissorDocumento String               // CPF ou CNPJ de quem emitiu
+  tipoDocumento    TipoDocumentoFiscal
+  categoria        CategoriaDedutivel
+  valor            Decimal              @db.Decimal(12, 2)
+  competencia      DateTime             // mês/ano de referência
+  anexoUrl         String?
+  criadoEm         DateTime             @default(now())
+
+  usuario Usuario @relation(fields: [usuarioId], references: [id])
+
+  @@index([usuarioId, competencia])
+  @@map("documentos_fiscais")
+}
+
+model BemDireito {
+  id                String   @id @default(uuid())
+  usuarioId         String   // titular do bem (para declaração separada por cônjuge)
+  tipo              TipoBem
+  descricao         String
+  codigoReceita     String?  // código do bem conforme tabela da Receita Federal
+  valorAquisicao    Decimal  @db.Decimal(14, 2)
+  valorAnoAnterior  Decimal? @db.Decimal(14, 2)
+  valorAnoAtual     Decimal? @db.Decimal(14, 2)
+  anoReferencia     Int
+
+  usuario Usuario @relation(fields: [usuarioId], references: [id])
+
+  @@index([usuarioId, anoReferencia])
+  @@map("bens_direitos")
+}
+
+// --- Carnê-leão (apuração mensal obrigatória para renda de PF sem retenção) ---
+
+model RendimentoAutonomo {
+  id                  String                  @id @default(uuid())
+  usuarioId           String
+  competencia         DateTime
+  tipo                TipoRendimentoAutonomo
+  fontePagadoraCpf    String?                 // nulo se rendimento do exterior
+  valorBruto          Decimal                 @db.Decimal(12, 2)
+  documentoFiscalId   String?                 // recibo emitido, se houver
+
+  usuario Usuario @relation(fields: [usuarioId], references: [id])
+
+  @@index([usuarioId, competencia])
+  @@map("rendimentos_autonomos")
+}
+
+model DeducaoCarneLeao {
+  id           String                @id @default(uuid())
+  usuarioId    String
+  competencia  DateTime
+  tipo         TipoDeducaoCarneLeao
+  valor        Decimal               @db.Decimal(12, 2)
+  anexoUrl     String?
+
+  usuario Usuario @relation(fields: [usuarioId], references: [id])
+
+  @@index([usuarioId, competencia])
+  @@map("deducoes_carne_leao")
+}
+
+model LivroCaixaLancamento {
+  id           String   @id @default(uuid())
+  usuarioId    String
+  competencia  DateTime
+  descricao    String
+  categoria    String   // aluguel_escritorio, material, conselho_classe, etc
+  valor        Decimal  @db.Decimal(12, 2)
+
+  usuario Usuario @relation(fields: [usuarioId], references: [id])
+
+  @@index([usuarioId, competencia])
+  @@map("livro_caixa_lancamentos")
+}
+
+// Resultado calculado da apuração mensal — gerado pelo CarneLeaoService,
+// nunca editado manualmente. Serve de conferência antes de lançar no
+// Carnê-Leão Web oficial da Receita.
+model ApuracaoMensalCarneLeao {
+  id                  String          @id @default(uuid())
+  usuarioId           String
+  competencia         DateTime
+  rendimentoBrutoTotal Decimal        @db.Decimal(12, 2)
+  deducoesTotal       Decimal         @db.Decimal(12, 2)
+  baseCalculo         Decimal         @db.Decimal(12, 2)
+  aliquotaEfetiva      Decimal?       @db.Decimal(6, 4)
+  impostoDevido        Decimal        @db.Decimal(12, 2)
+  codigoReceita        String         @default("0190")
+  vencimento           DateTime
+  status                StatusApuracao @default(PENDENTE)
+  // faixa 5000-7350: fórmula do redutor ainda não confirmada oficialmente (jan/2026).
+  // Enquanto isso, calculoIncerto=true força o app a mostrar aviso "confira no Carnê-Leão Web".
+  calculoIncerto       Boolean         @default(false)
+  criadoEm             DateTime        @default(now())
+
+  usuario Usuario @relation(fields: [usuarioId], references: [id])
+
+  @@unique([usuarioId, competencia])
+  @@map("apuracoes_mensais_carne_leao")
+}
+
+// ============================================================================
+// MÓDULO PJ — MEI e ME (Simples Nacional)
+// ============================================================================
+
+// Parâmetros fiscais de PJ, versionados por ano. mei_das_por_atividade e a
+// tabela de Anexos ficam separados abaixo (AnexoSimplesTabela) porque cada
+// usuário SaaS pode ter atividade/Anexo diferente — nada fixo aqui além do
+// que é igual pra todo mundo (teto do MEI, regra de dividendos).
+model ParametroFiscalPJ {
+  id                            String  @id @default(uuid())
+  anoCalendario                 Int     @unique
+  meiLimiteAnual                Decimal @db.Decimal(12, 2) // 81000.00
+  meiDasComercioIndustria       Decimal @db.Decimal(8, 2)  // 82.05
+  meiDasServicos                Decimal @db.Decimal(8, 2)  // 86.05
+  meiDasComercioServicos        Decimal @db.Decimal(8, 2)  // 87.05
+  limiteDividendoIsentoMensal   Decimal @db.Decimal(12, 2) // 50000.00
+  aliquotaDividendoExcedente    Decimal @db.Decimal(6, 4)  // 0.10
+
+  criadoEm DateTime @default(now())
+
+  @@map("parametros_fiscais_pj")
+}
+
+// Tabela de faixas por Anexo do Simples Nacional (I a V), configurável via
+// admin. É criada/ajustada apenas quando um usuário efetivamente configura
+// uma empresa com aquele Anexo — não vem populada por padrão no seed.
+model AnexoSimplesTabela {
+  id             String       @id @default(uuid())
+  anoCalendario  Int
+  anexo          AnexoSimples
+  // faixas: [{ rbt12Ate: 180000, aliquota: 0.04, parcelaDeduzir: 0 }, ...]
+  faixas         Json
+  atualizadoEm   DateTime     @default(now())
+
+  @@unique([anoCalendario, anexo])
+  @@map("anexos_simples_tabelas")
+}
+
+model Empresa {
+  id              String            @id @default(uuid())
+  usuarioId       String            // sócio/titular (CPF)
+  cnpj            String            @unique
+  nome            String
+  regime          RegimeEmpresa
+  atividadeTipo   AtividadeEmpresa
+  anexoSimples    AnexoSimples?     // obrigatório se regime = SIMPLES_ME
+  dataAbertura    DateTime
+  ativa           Boolean           @default(true)
+
+  usuario              Usuario                @relation(fields: [usuarioId], references: [id])
+  faturamentos         FaturamentoMensalPJ[]
+  rbt12Cache           RBT12Cache[]
+  apuracoesDas         DASApuracao[]
+  proLabores           ProLabore[]
+  distribuicoesLucro   DistribuicaoLucros[]
+  acompanhamentoLimite AcompanhamentoLimiteMEI[]
+
+  @@index([usuarioId])
+  @@map("empresas")
+}
+
+model FaturamentoMensalPJ {
+  id                     String   @id @default(uuid())
+  empresaId              String
+  competencia            DateTime
+  receitaBrutaTotal      Decimal  @db.Decimal(12, 2)
+  receitaComNota         Decimal? @db.Decimal(12, 2)
+  receitaSemNota         Decimal? @db.Decimal(12, 2)
+  clienteTipoPredominante EmissorTipo?
+
+  empresa Empresa @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+
+  @@unique([empresaId, competencia])
+  @@map("faturamentos_mensais_pj")
+}
+
+// Soma móvel dos últimos 12 meses de faturamento — necessário só para
+// empresas em regime SIMPLES_ME (define a alíquota efetiva do Anexo).
+model RBT12Cache {
+  id             String   @id @default(uuid())
+  empresaId      String
+  competencia    DateTime
+  rbt12Calculado Decimal  @db.Decimal(14, 2)
+
+  empresa Empresa @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+
+  @@unique([empresaId, competencia])
+  @@map("rbt12_cache")
+}
+
+model DASApuracao {
+  id               String          @id @default(uuid())
+  empresaId        String
+  competencia      DateTime
+  regimeNoMomento  RegimeEmpresa
+  valorDevido      Decimal         @db.Decimal(12, 2)
+  // detalheCalculo: se MEI -> { tipo: "fixo", valorTabelado }
+  //                 se SIMPLES -> { rbt12, anexo, aliquotaNominal, parcelaDeduzir, aliquotaEfetiva }
+  detalheCalculo   Json
+  vencimento       DateTime
+  status           StatusApuracao  @default(PENDENTE)
+  criadoEm         DateTime        @default(now())
+
+  empresa Empresa @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+
+  @@unique([empresaId, competencia])
+  @@map("das_apuracoes")
+}
+
+model ProLabore {
+  id           String   @id @default(uuid())
+  empresaId    String
+  competencia  DateTime
+  valor        Decimal  @db.Decimal(12, 2)
+  inssRetido   Decimal  @db.Decimal(12, 2)
+  irrfRetido   Decimal  @db.Decimal(12, 2)
+
+  empresa Empresa @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+
+  @@index([empresaId, competencia])
+  @@map("pro_labores")
+}
+
+model DistribuicaoLucros {
+  id              String   @id @default(uuid())
+  empresaId       String
+  competencia     DateTime
+  valor           Decimal  @db.Decimal(12, 2)
+  isento          Boolean
+  impostoRetido   Decimal  @db.Decimal(12, 2) @default(0)
+
+  empresa Empresa @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+
+  @@index([empresaId, competencia])
+  @@map("distribuicoes_lucros")
+}
+
+model AcompanhamentoLimiteMEI {
+  id                    String   @id @default(uuid())
+  empresaId             String
+  anoCalendario         Int
+  limiteProporcional    Decimal  @db.Decimal(12, 2)
+  receitaAcumuladaAno   Decimal  @db.Decimal(12, 2)
+  percentualAtingido    Decimal  @db.Decimal(6, 4)
+  alerta                String   // ok | atencao_80pct | excedeu_20pct | excedeu_mais_20pct
+  atualizadoEm          DateTime @updatedAt
+
+  empresa Empresa @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+
+  @@unique([empresaId, anoCalendario])
+  @@map("acompanhamentos_limite_mei")
+}
