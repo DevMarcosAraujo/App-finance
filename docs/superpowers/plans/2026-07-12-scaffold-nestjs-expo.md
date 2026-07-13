@@ -456,7 +456,7 @@ Note: `backend/.env` is intentionally not committed (already covered by root `.g
 - Create: `frontend/.env`
 
 **Interfaces:**
-- Produces: `apiGet<T>(path: string): Promise<T>` from `frontend/src/lib/api.ts`, the single entry point future screens use to call the backend (e.g. `import { apiGet } from '@/src/lib/api'`).
+- Produces: `apiGet<T>(path: string): Promise<T>` from `frontend/src/lib/api.ts`, the single entry point future screens use to call the backend (e.g. `import { apiGet } from '@/lib/api'` — `frontend/tsconfig.json` maps `@/*` to `./src/*`, so the `src/` segment is not repeated in the import path).
 
 - [ ] **Step 1: Create `frontend/src/lib/api.ts`**
 

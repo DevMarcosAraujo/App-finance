@@ -48,6 +48,8 @@ Sistema-finance/
 └── docs/
 ```
 
+> **Nota pós-implementação:** o template atual do `create-expo-app` (SDK 57) usa layout `src/`, então as rotas do Expo Router ficaram em `frontend/src/app/` em vez do `frontend/app/` ilustrado acima — sem impacto no restante do design. `frontend/tsconfig.json` mapeia `@/*` para `./src/*`, então o import de `api.ts` é `@/lib/api`, não `@/src/lib/api`.
+
 `backend` e `frontend` declaram `"@app-finance/shared": "*"` como dependência, resolvida localmente pelo workspace.
 
 ## Scripts (raiz `package.json`)
