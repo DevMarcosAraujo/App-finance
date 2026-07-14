@@ -131,8 +131,23 @@ model Usuario {
   livroCaixa         LivroCaixaLancamento[]
   apuracoesCarneLeao ApuracaoMensalCarneLeao[]
   empresas           Empresa[]
+  refreshTokens      RefreshToken[]
 
   @@map("usuarios")
+}
+
+model RefreshToken {
+  id          String    @id @default(uuid())
+  usuarioId   String
+  tokenHash   String
+  criadoEm    DateTime  @default(now())
+  expiraEm    DateTime
+  revogadoEm  DateTime?
+
+  usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  @@index([usuarioId])
+  @@map("refresh_tokens")
 }
 
 model Plano {
