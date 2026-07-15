@@ -4,6 +4,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
+import type { JwtSignOptions } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
 import { randomUUID } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
@@ -172,7 +173,7 @@ export class AuthService {
       {
         secret: process.env.JWT_ACCESS_SECRET,
         expiresIn: ACCESS_TOKEN_EXPIRES,
-      },
+      } as JwtSignOptions,
     );
 
     const jti = randomUUID();
@@ -181,7 +182,7 @@ export class AuthService {
       {
         secret: process.env.JWT_REFRESH_SECRET,
         expiresIn: REFRESH_TOKEN_EXPIRES,
-      },
+      } as JwtSignOptions,
     );
 
     const tokenHash = await bcrypt.hash(refreshToken, 10);
