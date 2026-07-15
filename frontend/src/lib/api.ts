@@ -10,6 +10,16 @@ let refreshAccessToken: (() => Promise<string | null>) | null = null;
 // call itself forever whenever the stored refresh token is rejected.
 const AUTH_ENDPOINTS_WITHOUT_RETRY = ['/auth/register', '/auth/login', '/auth/refresh'];
 
+export class ApiError extends Error {
+  status: number;
+
+  constructor(message: string, status: number) {
+    super(message);
+    this.name = 'ApiError';
+    this.status = status;
+  }
+}
+
 export function setAccessToken(token: string | null): void {
   accessToken = token;
 }
@@ -54,7 +64,7 @@ async function request<T>(
     const message =
       (body as { message?: string } | null)?.message ??
       `${init.method ?? 'GET'} ${path} failed with status ${response.status}`;
-    throw new Error(message);
+    throw new ApiError(message, response.status);
   }
 
   if (response.status === 204) {
