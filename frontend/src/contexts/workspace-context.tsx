@@ -4,6 +4,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type PropsWithChildren,
 } from 'react';
@@ -34,6 +35,15 @@ export function WorkspaceProvider({ children }: PropsWithChildren) {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
 
+  // Tracks which usuario.id the workspace/isLoading state above was last
+  // resolved for. WorkspaceProvider re-renders synchronously (same commit)
+  // whenever AuthProvider's usuario changes, but the effect below only runs
+  // *after* that paint — so on the transition render, `isLoading` can still
+  // be a stale `false` left over from a previous (or absent) usuario. This
+  // ref lets us detect "state hasn't caught up to the current usuario yet"
+  // during render, instead of trusting isLoading alone.
+  const resolvedUserIdRef = useRef<string | null>(null);
+
   const fetchWorkspace = useCallback(async (): Promise<Workspace | null> => {
     try {
       return await apiGet<Workspace>('/workspaces/me');
@@ -47,6 +57,7 @@ export function WorkspaceProvider({ children }: PropsWithChildren) {
 
   useEffect(() => {
     let active = true;
+    resolvedUserIdRef.current = usuario?.id ?? null;
 
     if (!usuario) {
       setWorkspace(null);
@@ -86,9 +97,20 @@ export function WorkspaceProvider({ children }: PropsWithChildren) {
     setWorkspace(result);
   }, []);
 
+  // If there's a usuario but our state hasn't been resolved for THIS
+  // usuario.id yet (the effect above hasn't run for it), report loading
+  // regardless of what the raw isLoading state currently says — closes the
+  // one-commit gap where a fresh usuario shows up alongside stale
+  // workspace/isLoading values from a previous (or no) usuario.
+  const isStaleForCurrentUser =
+    !!usuario && resolvedUserIdRef.current !== usuario.id;
+  const effectiveIsLoading = usuario
+    ? isStaleForCurrentUser || isLoading
+    : false;
+
   const value = useMemo(
-    () => ({ workspace, isLoading, error, createWorkspace }),
-    [workspace, isLoading, error, createWorkspace],
+    () => ({ workspace, isLoading: effectiveIsLoading, error, createWorkspace }),
+    [workspace, effectiveIsLoading, error, createWorkspace],
   );
 
   return (
