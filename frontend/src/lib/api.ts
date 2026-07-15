@@ -5,6 +5,11 @@ let accessToken: string | null = null;
 let onUnauthorized: (() => void) | null = null;
 let refreshAccessToken: (() => Promise<string | null>) | null = null;
 
+// These endpoints are the auth flow itself: a 401 from one of them must
+// never trigger a refresh-and-retry, or /auth/refresh would recursively
+// call itself forever whenever the stored refresh token is rejected.
+const AUTH_ENDPOINTS_WITHOUT_RETRY = ['/auth/register', '/auth/login', '/auth/refresh'];
+
 export function setAccessToken(token: string | null): void {
   accessToken = token;
 }
@@ -30,7 +35,12 @@ async function request<T>(
 
   const response = await fetch(`${API_URL}${path}`, { ...init, headers });
 
-  if (response.status === 401 && !isRetry && refreshAccessToken) {
+  if (
+    response.status === 401 &&
+    !isRetry &&
+    refreshAccessToken &&
+    !AUTH_ENDPOINTS_WITHOUT_RETRY.includes(path)
+  ) {
     const newToken = await refreshAccessToken();
     if (newToken) {
       setAccessToken(newToken);
