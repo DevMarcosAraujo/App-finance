@@ -22,6 +22,7 @@ interface Workspace {
 interface WorkspaceContextValue {
   workspace: Workspace | null;
   isLoading: boolean;
+  error: Error | null;
   createWorkspace: (tipo: PlanoTipo) => Promise<void>;
 }
 
@@ -31,35 +32,53 @@ export function WorkspaceProvider({ children }: PropsWithChildren) {
   const { usuario } = useAuth();
   const [workspace, setWorkspace] = useState<Workspace | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
 
-  const fetchWorkspace = useCallback(async () => {
+  const fetchWorkspace = useCallback(async (): Promise<Workspace | null> => {
     try {
-      const result = await apiGet<Workspace>('/workspaces/me');
-      setWorkspace(result);
+      return await apiGet<Workspace>('/workspaces/me');
     } catch (err) {
       if (err instanceof ApiError && err.status === 404) {
-        setWorkspace(null);
-      } else {
-        throw err;
+        return null;
       }
+      throw err;
     }
   }, []);
 
   useEffect(() => {
+    let active = true;
+
     if (!usuario) {
       setWorkspace(null);
+      setError(null);
       setIsLoading(false);
-      return;
+      return () => {
+        active = false;
+      };
     }
 
     setIsLoading(true);
+    setError(null);
     (async () => {
       try {
-        await fetchWorkspace();
+        const result = await fetchWorkspace();
+        if (active) {
+          setWorkspace(result);
+        }
+      } catch (err) {
+        if (active) {
+          setError(err instanceof Error ? err : new Error(String(err)));
+        }
       } finally {
-        setIsLoading(false);
+        if (active) {
+          setIsLoading(false);
+        }
       }
     })();
+
+    return () => {
+      active = false;
+    };
   }, [usuario, fetchWorkspace]);
 
   const createWorkspace = useCallback(async (tipo: PlanoTipo) => {
@@ -68,8 +87,8 @@ export function WorkspaceProvider({ children }: PropsWithChildren) {
   }, []);
 
   const value = useMemo(
-    () => ({ workspace, isLoading, createWorkspace }),
-    [workspace, isLoading, createWorkspace],
+    () => ({ workspace, isLoading, error, createWorkspace }),
+    [workspace, isLoading, error, createWorkspace],
   );
 
   return (
