@@ -281,6 +281,93 @@ describe('AuthService', () => {
         UnauthorizedException,
       );
     });
+
+    it('throws UnauthorizedException when the jti is unknown and does not mutate the DB', async () => {
+      const { service, prisma, jwtService } = buildService();
+
+      (jwtService.verify as jest.Mock).mockReturnValue({
+        sub: usuario.id,
+        jti: 'unknown-jti',
+      });
+      (prisma.refreshToken.findUnique as jest.Mock).mockResolvedValue(null);
+
+      await expect(service.refresh('some-token')).rejects.toThrow(
+        UnauthorizedException,
+      );
+
+      expect(prisma.refreshToken.update).not.toHaveBeenCalled();
+      expect(prisma.refreshToken.updateMany).not.toHaveBeenCalled();
+    });
+
+    it('throws UnauthorizedException when the record usuarioId does not match the payload sub and does not mutate the DB', async () => {
+      const { service, prisma, jwtService } = buildService();
+      const tokenHash = await bcrypt.hash('some-token', 10);
+
+      (jwtService.verify as jest.Mock).mockReturnValue({
+        sub: usuario.id,
+        jti: 'token-1',
+      });
+      (prisma.refreshToken.findUnique as jest.Mock).mockResolvedValue({
+        id: 'token-1',
+        usuarioId: 'other-user',
+        tokenHash,
+        expiraEm: new Date(Date.now() + 1000 * 60 * 60),
+        revogadoEm: null,
+      });
+
+      await expect(service.refresh('some-token')).rejects.toThrow(
+        UnauthorizedException,
+      );
+
+      expect(prisma.refreshToken.update).not.toHaveBeenCalled();
+      expect(prisma.refreshToken.updateMany).not.toHaveBeenCalled();
+    });
+
+    it('throws UnauthorizedException for an expired refresh token and does not rotate it', async () => {
+      const { service, prisma, jwtService } = buildService();
+      const tokenHash = await bcrypt.hash('expired-refresh-token', 10);
+
+      (jwtService.verify as jest.Mock).mockReturnValue({
+        sub: usuario.id,
+        jti: 'token-1',
+      });
+      (prisma.refreshToken.findUnique as jest.Mock).mockResolvedValue({
+        id: 'token-1',
+        usuarioId: usuario.id,
+        tokenHash,
+        expiraEm: new Date(Date.now() - 1000),
+        revogadoEm: null,
+      });
+
+      await expect(
+        service.refresh('expired-refresh-token'),
+      ).rejects.toThrow(UnauthorizedException);
+
+      expect(prisma.refreshToken.update).not.toHaveBeenCalled();
+    });
+
+    it('throws UnauthorizedException when the token hash does not match and does not rotate it', async () => {
+      const { service, prisma, jwtService } = buildService();
+      const tokenHash = await bcrypt.hash('a-different-token', 10);
+
+      (jwtService.verify as jest.Mock).mockReturnValue({
+        sub: usuario.id,
+        jti: 'token-1',
+      });
+      (prisma.refreshToken.findUnique as jest.Mock).mockResolvedValue({
+        id: 'token-1',
+        usuarioId: usuario.id,
+        tokenHash,
+        expiraEm: new Date(Date.now() + 1000 * 60 * 60),
+        revogadoEm: null,
+      });
+
+      await expect(
+        service.refresh('presented-refresh-token'),
+      ).rejects.toThrow(UnauthorizedException);
+
+      expect(prisma.refreshToken.update).not.toHaveBeenCalled();
+    });
   });
 
   describe('logout', () => {

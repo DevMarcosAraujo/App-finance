@@ -1,4 +1,3 @@
-// backend/src/auth/auth.service.ts
 import {
   ConflictException,
   Injectable,
