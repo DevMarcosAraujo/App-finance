@@ -70,6 +70,23 @@ export class WorkspaceService {
     };
   }
 
+  async findMine(usuarioId: string): Promise<WorkspaceResult | null> {
+    const membership = await this.prisma.workspaceMembro.findFirst({
+      where: { usuarioId },
+      include: { workspace: { include: { plano: true } } },
+    });
+
+    if (!membership) {
+      return null;
+    }
+
+    return {
+      id: membership.workspace.id,
+      nome: membership.workspace.nome,
+      plano: { tipo: membership.workspace.plano.tipo },
+    };
+  }
+
   private async ensurePlanos(): Promise<void> {
     const count = await this.prisma.plano.count();
     if (count > 0) {

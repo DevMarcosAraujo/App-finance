@@ -114,4 +114,39 @@ describe('WorkspaceService', () => {
       });
     });
   });
+
+  describe('findMine', () => {
+    it('returns null when the user has no workspace', async () => {
+      const { service, prisma } = buildService();
+      (prisma.workspaceMembro.findFirst as jest.Mock).mockResolvedValue(null);
+
+      const result = await service.findMine(usuarioId);
+
+      expect(result).toBeNull();
+    });
+
+    it('returns the workspace when the user has one', async () => {
+      const { service, prisma } = buildService();
+      (prisma.workspaceMembro.findFirst as jest.Mock).mockResolvedValue({
+        id: 'membro-1',
+        workspace: {
+          id: 'ws-1',
+          nome: 'Financeiro de Marcos',
+          plano: { tipo: PlanoTipo.INDIVIDUAL },
+        },
+      });
+
+      const result = await service.findMine(usuarioId);
+
+      expect(prisma.workspaceMembro.findFirst).toHaveBeenCalledWith({
+        where: { usuarioId },
+        include: { workspace: { include: { plano: true } } },
+      });
+      expect(result).toEqual({
+        id: 'ws-1',
+        nome: 'Financeiro de Marcos',
+        plano: { tipo: PlanoTipo.INDIVIDUAL },
+      });
+    });
+  });
 });
