@@ -33,6 +33,7 @@ async function request<T>(
   if (response.status === 401 && !isRetry && refreshAccessToken) {
     const newToken = await refreshAccessToken();
     if (newToken) {
+      setAccessToken(newToken);
       return request<T>(path, init, true);
     }
     onUnauthorized?.();
