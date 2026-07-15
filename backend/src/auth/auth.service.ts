@@ -1,3 +1,4 @@
+// backend/src/auth/auth.service.ts
 import {
   ConflictException,
   Injectable,
@@ -14,6 +15,11 @@ import { parseDurationToMs } from './duration.util';
 const ACCESS_TOKEN_EXPIRES = process.env.JWT_ACCESS_EXPIRES ?? '15m';
 const REFRESH_TOKEN_EXPIRES = process.env.JWT_REFRESH_EXPIRES ?? '30d';
 const REFRESH_TOKEN_TTL_MS = parseDurationToMs(REFRESH_TOKEN_EXPIRES);
+
+interface RefreshTokenPayload {
+  sub: string;
+  jti: string;
+}
 
 export interface AuthTokens {
   accessToken: string;
@@ -79,6 +85,69 @@ export class AuthService {
     const tokens = await this.issueTokens(usuario.id, usuario.email);
 
     return { usuario: this.toPublicUsuario(usuario), ...tokens };
+  }
+
+  async refresh(refreshToken: string): Promise<AuthTokens> {
+    const payload = this.verifyRefreshToken(refreshToken);
+
+    const record = await this.prisma.refreshToken.findUnique({
+      where: { id: payload.jti },
+    });
+
+    if (!record || record.usuarioId !== payload.sub) {
+      throw new UnauthorizedException('refresh token inválido');
+    }
+
+    if (record.revogadoEm) {
+      await this.prisma.refreshToken.updateMany({
+        where: { usuarioId: record.usuarioId, revogadoEm: null },
+        data: { revogadoEm: new Date() },
+      });
+      throw new UnauthorizedException('refresh token inválido');
+    }
+
+    if (record.expiraEm < new Date()) {
+      throw new UnauthorizedException('refresh token expirado');
+    }
+
+    const tokenMatches = await bcrypt.compare(refreshToken, record.tokenHash);
+    if (!tokenMatches) {
+      throw new UnauthorizedException('refresh token inválido');
+    }
+
+    await this.prisma.refreshToken.update({
+      where: { id: record.id },
+      data: { revogadoEm: new Date() },
+    });
+
+    const usuario = await this.prisma.usuario.findUnique({
+      where: { id: record.usuarioId },
+    });
+
+    if (!usuario) {
+      throw new UnauthorizedException('refresh token inválido');
+    }
+
+    return this.issueTokens(usuario.id, usuario.email);
+  }
+
+  async logout(refreshToken: string): Promise<void> {
+    const payload = this.verifyRefreshToken(refreshToken);
+
+    await this.prisma.refreshToken.updateMany({
+      where: { id: payload.jti, revogadoEm: null },
+      data: { revogadoEm: new Date() },
+    });
+  }
+
+  private verifyRefreshToken(refreshToken: string): RefreshTokenPayload {
+    try {
+      return this.jwtService.verify<RefreshTokenPayload>(refreshToken, {
+        secret: process.env.JWT_REFRESH_SECRET,
+      });
+    } catch {
+      throw new UnauthorizedException('refresh token inválido');
+    }
   }
 
   private toPublicUsuario(usuario: {

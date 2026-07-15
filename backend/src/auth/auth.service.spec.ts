@@ -217,4 +217,86 @@ describe('AuthService', () => {
       await assertTokenIssuance(prisma, jwtService, result);
     });
   });
+
+  describe('refresh', () => {
+    it('rotates the refresh token and returns new tokens', async () => {
+      const { service, prisma, jwtService } = buildService();
+      const oldTokenHash = await bcrypt.hash('old-refresh-token', 10);
+
+      (jwtService.verify as jest.Mock).mockReturnValue({
+        sub: usuario.id,
+        jti: 'token-1',
+      });
+      (prisma.refreshToken.findUnique as jest.Mock).mockResolvedValue({
+        id: 'token-1',
+        usuarioId: usuario.id,
+        tokenHash: oldTokenHash,
+        expiraEm: new Date(Date.now() + 1000 * 60 * 60),
+        revogadoEm: null,
+      });
+      (prisma.usuario.findUnique as jest.Mock).mockResolvedValue(usuario);
+
+      const result = await service.refresh('old-refresh-token');
+
+      expect(prisma.refreshToken.update).toHaveBeenCalledWith({
+        where: { id: 'token-1' },
+        data: { revogadoEm: expect.any(Date) },
+      });
+      expect(result.accessToken).toBe('signed-token');
+    });
+
+    it('revokes all sessions when a revoked refresh token is reused', async () => {
+      const { service, prisma, jwtService } = buildService();
+      const tokenHash = await bcrypt.hash('stolen-refresh-token', 10);
+
+      (jwtService.verify as jest.Mock).mockReturnValue({
+        sub: usuario.id,
+        jti: 'token-1',
+      });
+      (prisma.refreshToken.findUnique as jest.Mock).mockResolvedValue({
+        id: 'token-1',
+        usuarioId: usuario.id,
+        tokenHash,
+        expiraEm: new Date(Date.now() + 1000 * 60 * 60),
+        revogadoEm: new Date(),
+      });
+
+      await expect(service.refresh('stolen-refresh-token')).rejects.toThrow(
+        UnauthorizedException,
+      );
+
+      expect(prisma.refreshToken.updateMany).toHaveBeenCalledWith({
+        where: { usuarioId: usuario.id, revogadoEm: null },
+        data: { revogadoEm: expect.any(Date) },
+      });
+    });
+
+    it('throws when the refresh token JWT is invalid', async () => {
+      const { service, jwtService } = buildService();
+      (jwtService.verify as jest.Mock).mockImplementation(() => {
+        throw new Error('invalid signature');
+      });
+
+      await expect(service.refresh('garbage')).rejects.toThrow(
+        UnauthorizedException,
+      );
+    });
+  });
+
+  describe('logout', () => {
+    it('revokes the refresh token record', async () => {
+      const { service, prisma, jwtService } = buildService();
+      (jwtService.verify as jest.Mock).mockReturnValue({
+        sub: usuario.id,
+        jti: 'token-1',
+      });
+
+      await service.logout('some-refresh-token');
+
+      expect(prisma.refreshToken.updateMany).toHaveBeenCalledWith({
+        where: { id: 'token-1', revogadoEm: null },
+        data: { revogadoEm: expect.any(Date) },
+      });
+    });
+  });
 });
