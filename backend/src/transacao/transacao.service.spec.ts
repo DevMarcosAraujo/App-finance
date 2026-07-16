@@ -1,4 +1,4 @@
-import { BadRequestException } from '@nestjs/common';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { TransacaoTipo } from '@prisma/client';
 import { TransacaoService } from './transacao.service';
 import { PrismaService } from '../prisma/prisma.service';
@@ -118,6 +118,101 @@ describe('TransacaoService', () => {
       await expect(
         service.findByMonth(workspaceId, 2026, 13),
       ).rejects.toThrow(BadRequestException);
+    });
+  });
+
+  describe('update', () => {
+    it('updates a transacao belonging to the workspace', async () => {
+      const { service, prisma } = buildService();
+      (prisma.transacao.findUnique as jest.Mock).mockResolvedValue({
+        id: 'tx-1',
+        workspaceId,
+      });
+      (prisma.transacao.update as jest.Mock).mockResolvedValue({
+        id: 'tx-1',
+        tipo: TransacaoTipo.RECEITA,
+        valor: '100',
+        categoria: null,
+        descricao: 'atualizado',
+        data: new Date('2026-07-16T00:00:00.000Z'),
+        usuarioId,
+      });
+
+      const result = await service.update(workspaceId, 'tx-1', {
+        descricao: 'atualizado',
+      });
+
+      expect(prisma.transacao.update).toHaveBeenCalledWith({
+        where: { id: 'tx-1' },
+        data: { descricao: 'atualizado' },
+        include: { categoria: true },
+      });
+      expect(result.descricao).toBe('atualizado');
+    });
+
+    it('throws NotFoundException when the transacao belongs to another workspace', async () => {
+      const { service, prisma } = buildService();
+      (prisma.transacao.findUnique as jest.Mock).mockResolvedValue({
+        id: 'tx-1',
+        workspaceId: 'outro-workspace',
+      });
+
+      await expect(
+        service.update(workspaceId, 'tx-1', { descricao: 'x' }),
+      ).rejects.toThrow(NotFoundException);
+      expect(prisma.transacao.update).not.toHaveBeenCalled();
+    });
+
+    it('throws NotFoundException when the transacao does not exist', async () => {
+      const { service, prisma } = buildService();
+      (prisma.transacao.findUnique as jest.Mock).mockResolvedValue(null);
+
+      await expect(
+        service.update(workspaceId, 'tx-inexistente', { descricao: 'x' }),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('rejects an unknown categoriaId on update', async () => {
+      const { service, prisma } = buildService();
+      (prisma.transacao.findUnique as jest.Mock).mockResolvedValue({
+        id: 'tx-1',
+        workspaceId,
+      });
+      (prisma.categoria.findUnique as jest.Mock).mockResolvedValue(null);
+
+      await expect(
+        service.update(workspaceId, 'tx-1', { categoriaId: 'cat-inexistente' }),
+      ).rejects.toThrow(BadRequestException);
+      expect(prisma.transacao.update).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('delete', () => {
+    it('deletes a transacao belonging to the workspace', async () => {
+      const { service, prisma } = buildService();
+      (prisma.transacao.findUnique as jest.Mock).mockResolvedValue({
+        id: 'tx-1',
+        workspaceId,
+      });
+
+      await service.delete(workspaceId, 'tx-1');
+
+      expect(prisma.transacao.delete).toHaveBeenCalledWith({
+        where: { id: 'tx-1' },
+      });
+    });
+
+    it('throws NotFoundException when the transacao belongs to another workspace', async () => {
+      const { service, prisma } = buildService();
+      (prisma.transacao.findUnique as jest.Mock).mockResolvedValue({
+        id: 'tx-1',
+        workspaceId: 'outro-workspace',
+      });
+
+      await expect(service.delete(workspaceId, 'tx-1')).rejects.toThrow(
+        NotFoundException,
+      );
+      expect(prisma.transacao.delete).not.toHaveBeenCalled();
     });
   });
 });

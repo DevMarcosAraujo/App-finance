@@ -1,7 +1,12 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { TransacaoTipo } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateTransacaoDto } from './dto/create-transacao.dto';
+import { UpdateTransacaoDto } from './dto/update-transacao.dto';
 
 export interface TransacaoResult {
   id: string;
@@ -83,6 +88,50 @@ export class TransacaoService {
     });
 
     return transacoes.map((transacao) => this.toResult(transacao));
+  }
+
+  async update(
+    workspaceId: string,
+    id: string,
+    dto: UpdateTransacaoDto,
+  ): Promise<TransacaoResult> {
+    await this.findOwned(workspaceId, id);
+
+    if (dto.categoriaId) {
+      await this.assertCategoriaExists(dto.categoriaId);
+    }
+
+    const transacao = await this.prisma.transacao.update({
+      where: { id },
+      data: {
+        ...(dto.tipo !== undefined && { tipo: dto.tipo }),
+        ...(dto.valor !== undefined && { valor: dto.valor }),
+        ...(dto.categoriaId !== undefined && { categoriaId: dto.categoriaId }),
+        ...(dto.descricao !== undefined && { descricao: dto.descricao }),
+        ...(dto.data !== undefined && { data: new Date(dto.data) }),
+      },
+      include: { categoria: true },
+    });
+
+    return this.toResult(transacao);
+  }
+
+  async delete(workspaceId: string, id: string): Promise<void> {
+    await this.findOwned(workspaceId, id);
+    await this.prisma.transacao.delete({ where: { id } });
+  }
+
+  private async findOwned(
+    workspaceId: string,
+    id: string,
+  ): Promise<{ id: string; workspaceId: string }> {
+    const transacao = await this.prisma.transacao.findUnique({
+      where: { id },
+    });
+    if (!transacao || transacao.workspaceId !== workspaceId) {
+      throw new NotFoundException('transação não encontrada');
+    }
+    return transacao;
   }
 
   private async assertCategoriaExists(categoriaId: string): Promise<void> {
