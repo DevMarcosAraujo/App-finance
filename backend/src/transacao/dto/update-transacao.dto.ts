@@ -6,7 +6,6 @@ import {
   IsPositive,
   IsString,
   IsUUID,
-  Matches,
 } from 'class-validator';
 import { TransacaoTipo } from '@prisma/client';
 
@@ -21,9 +20,7 @@ export class UpdateTransacaoDto {
   valor?: number;
 
   @IsOptional()
-  @Matches(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i, {
-    message: 'categoriaId must be a UUID',
-  })
+  @IsUUID()
   categoriaId?: string;
 
   @IsOptional()

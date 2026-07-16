@@ -18,7 +18,7 @@ describe('CreateTransacaoDto', () => {
     const dto = plainToInstance(CreateTransacaoDto, {
       ...valid,
       tipo: 'RECEITA',
-      categoriaId: '11111111-1111-1111-1111-111111111111',
+      categoriaId: '3fa85f64-5717-4562-b3fc-2c963f66afa6',
       descricao: 'salário de julho',
     });
     expect(await validate(dto)).toHaveLength(0);
