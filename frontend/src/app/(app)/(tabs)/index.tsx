@@ -63,8 +63,12 @@ export default function HomeScreen() {
           text: 'Excluir',
           style: 'destructive',
           onPress: async () => {
-            await deleteTransacao(id);
-            await refetch();
+            try {
+              await deleteTransacao(id);
+              await refetch();
+            } catch {
+              Alert.alert('Erro', 'Não foi possível excluir a transação.');
+            }
           },
         },
       ],
