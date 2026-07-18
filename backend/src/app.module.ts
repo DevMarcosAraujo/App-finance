@@ -6,6 +6,7 @@ import { AuthModule } from './auth/auth.module';
 import { WorkspaceModule } from './workspace/workspace.module';
 import { CategoriaModule } from './categoria/categoria.module';
 import { TransacaoModule } from './transacao/transacao.module';
+import { CarneLeaoModule } from './carne-leao/carne-leao.module';
 
 @Module({
   imports: [
@@ -14,6 +15,7 @@ import { TransacaoModule } from './transacao/transacao.module';
     WorkspaceModule,
     CategoriaModule,
     TransacaoModule,
+    CarneLeaoModule,
   ],
   controllers: [AppController],
   providers: [AppService],
