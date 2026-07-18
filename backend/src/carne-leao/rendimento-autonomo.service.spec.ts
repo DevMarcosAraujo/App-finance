@@ -96,6 +96,54 @@ describe('RendimentoAutonomoService', () => {
       expect(result.valorBruto).toBe(2000);
     });
 
+    it('recalcula tanto a competência antiga quanto a nova quando a competência muda de mês', async () => {
+      const { service, prisma, apuracaoService } = buildService();
+      const competenciaAntiga = new Date(Date.UTC(2026, 5, 1));
+      const competenciaNova = new Date(Date.UTC(2026, 6, 1));
+      (prisma.rendimentoAutonomo.findUnique as jest.Mock).mockResolvedValue({
+        id: 'r-1',
+        usuarioId,
+        competencia: competenciaAntiga,
+      });
+      (prisma.rendimentoAutonomo.update as jest.Mock).mockResolvedValue({
+        id: 'r-1',
+        tipo: 'HONORARIO',
+        fontePagadoraCpf: '11144477735',
+        valorBruto: '2000',
+        documentoFiscalId: null,
+        competencia: competenciaNova,
+      });
+
+      await service.update(usuarioId, 'r-1', { competencia: '2026-07-15' });
+
+      expect(apuracaoService.recalcular).toHaveBeenCalledTimes(2);
+      expect(apuracaoService.recalcular).toHaveBeenNthCalledWith(1, usuarioId, competenciaAntiga);
+      expect(apuracaoService.recalcular).toHaveBeenNthCalledWith(2, usuarioId, competenciaNova);
+    });
+
+    it('recalcula a apuração apenas uma vez quando a competência muda de dia mas permanece no mesmo mês', async () => {
+      const { service, prisma, apuracaoService } = buildService();
+      const competencia = new Date(Date.UTC(2026, 6, 1));
+      (prisma.rendimentoAutonomo.findUnique as jest.Mock).mockResolvedValue({
+        id: 'r-1',
+        usuarioId,
+        competencia,
+      });
+      (prisma.rendimentoAutonomo.update as jest.Mock).mockResolvedValue({
+        id: 'r-1',
+        tipo: 'HONORARIO',
+        fontePagadoraCpf: '11144477735',
+        valorBruto: '2000',
+        documentoFiscalId: null,
+        competencia,
+      });
+
+      await service.update(usuarioId, 'r-1', { competencia: '2026-07-20' });
+
+      expect(apuracaoService.recalcular).toHaveBeenCalledTimes(1);
+      expect(apuracaoService.recalcular).toHaveBeenCalledWith(usuarioId, competencia);
+    });
+
     it('lança NotFoundException ao editar rendimento de outro usuário', async () => {
       const { service, prisma } = buildService();
       (prisma.rendimentoAutonomo.findUnique as jest.Mock).mockResolvedValue({
