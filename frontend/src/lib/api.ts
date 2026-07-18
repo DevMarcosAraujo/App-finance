@@ -71,7 +71,11 @@ async function request<T>(
     return undefined as T;
   }
 
-  return response.json() as Promise<T>;
+  const text = await response.text();
+  if (text === '') {
+    return null as T;
+  }
+  return JSON.parse(text) as T;
 }
 
 export async function apiGet<T>(path: string): Promise<T> {
