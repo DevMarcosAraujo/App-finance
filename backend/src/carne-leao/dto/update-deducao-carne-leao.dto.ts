@@ -1,5 +1,6 @@
 import { IsDateString, IsIn, IsNumber, IsOptional, IsPositive, IsString } from 'class-validator';
-import { TIPOS_DEDUCAO_ACEITOS, TipoDeducaoCarneLeaoAceito } from './create-deducao-carne-leao.dto';
+import { TIPOS_DEDUCAO_ACEITOS } from './create-deducao-carne-leao.dto';
+import type { TipoDeducaoCarneLeaoAceito } from './create-deducao-carne-leao.dto';
 
 export class UpdateDeducaoCarneLeaoDto {
   @IsOptional()

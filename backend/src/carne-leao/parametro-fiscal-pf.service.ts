@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 
 export interface FaixaProgressiva {
@@ -44,7 +45,11 @@ export class ParametroFiscalPfService {
       return;
     }
     await this.prisma.parametroFiscalPF.create({
-      data: { anoCalendario: ano, ...dados },
+      data: {
+        anoCalendario: ano,
+        ...dados,
+        tabelaProgressivaMensal: dados.tabelaProgressivaMensal as unknown as Prisma.InputJsonValue,
+      },
     });
   }
 
