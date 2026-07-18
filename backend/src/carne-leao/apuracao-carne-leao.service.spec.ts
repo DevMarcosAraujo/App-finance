@@ -68,6 +68,28 @@ describe('ApuracaoCarneLeaoService', () => {
       expect(result.calculoIncerto).toBe(true);
     });
 
+    it('trata baseCalculo exatamente igual à faixaIsencaoMensal como isento', async () => {
+      const { service, prisma } = buildService();
+      (prisma.rendimentoAutonomo.findMany as jest.Mock).mockResolvedValue([{ valorBruto: '2500' }]);
+
+      const result = await service.recalcular(usuarioId, new Date('2026-01-15'));
+
+      expect(result.baseCalculo).toBe(2000); // 2500 - max(0, 500)
+      expect(result.impostoDevido).toBe(0);
+      expect(result.calculoIncerto).toBe(false);
+    });
+
+    it('trata baseCalculo exatamente igual à faixaReducaoAte ainda como incerto', async () => {
+      const { service, prisma } = buildService();
+      (prisma.rendimentoAutonomo.findMany as jest.Mock).mockResolvedValue([{ valorBruto: '3500' }]);
+
+      const result = await service.recalcular(usuarioId, new Date('2026-01-15'));
+
+      expect(result.baseCalculo).toBe(3000); // 3500 - max(0, 500)
+      expect(result.impostoDevido).toBe(200); // 3000*0.10 - 100
+      expect(result.calculoIncerto).toBe(true);
+    });
+
     it('usa a dedução detalhada quando ela é maior que o desconto simplificado', async () => {
       const { service, prisma } = buildService();
       (prisma.rendimentoAutonomo.findMany as jest.Mock).mockResolvedValue([{ valorBruto: '6000' }]);
