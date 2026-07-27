@@ -96,14 +96,7 @@ export class DistribuicaoLucrosService {
       },
     });
 
-    return {
-      id: distribuicao?.id ?? id,
-      empresaId: existente.empresaId,
-      competencia: novaCompetencia,
-      valor: novoValor,
-      isento,
-      impostoRetido: 0,
-    };
+    return this.toResult(distribuicao);
   }
 
   async delete(usuarioId: string, id: string): Promise<void> {
