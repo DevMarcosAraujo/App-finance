@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, OnModuleInit } from '@nestjs/common';
 import { CarneLeaoModule } from '../carne-leao/carne-leao.module';
 import { EmpresaController } from './empresa.controller';
 import { EmpresaService } from './empresa.service';
@@ -15,6 +15,8 @@ import { AcompanhamentoLimiteMeiService } from './acompanhamento-limite-mei.serv
 import { RBT12Service } from './rbt12.service';
 import { ParametroFiscalPjService } from './parametro-fiscal-pj.service';
 import { AnexoSimplesTabelaService } from './anexo-simples-tabela.service';
+import { PARAMETRO_FISCAL_PJ_2026 } from './parametro-fiscal-pj-2026.constants';
+import { ANEXOS_SIMPLES_2026 } from './anexo-simples-tabela-2026.constants';
 
 @Module({
   imports: [CarneLeaoModule],
@@ -38,4 +40,16 @@ import { AnexoSimplesTabelaService } from './anexo-simples-tabela.service';
     AnexoSimplesTabelaService,
   ],
 })
-export class PjModule {}
+export class PjModule implements OnModuleInit {
+  constructor(
+    private readonly parametroFiscalPjService: ParametroFiscalPjService,
+    private readonly anexoSimplesTabelaService: AnexoSimplesTabelaService,
+  ) {}
+
+  async onModuleInit(): Promise<void> {
+    await this.parametroFiscalPjService.ensureSeed(2026, PARAMETRO_FISCAL_PJ_2026);
+    for (const { anexo, faixas } of ANEXOS_SIMPLES_2026) {
+      await this.anexoSimplesTabelaService.ensureSeed(2026, anexo, faixas);
+    }
+  }
+}
