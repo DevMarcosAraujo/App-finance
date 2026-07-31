@@ -3,6 +3,8 @@ import { AnexoSimples, AtividadeEmpresa, RegimeEmpresa } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateEmpresaDto } from './dto/create-empresa.dto';
 import { UpdateEmpresaDto } from './dto/update-empresa.dto';
+import { RBT12Service } from './rbt12.service';
+import { DASApuracaoService } from './das-apuracao.service';
 
 export interface EmpresaResult {
   id: string;
@@ -29,7 +31,11 @@ interface RawEmpresa {
 
 @Injectable()
 export class EmpresaService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly rbt12Service: RBT12Service,
+    private readonly dasApuracaoService: DASApuracaoService,
+  ) {}
 
   async create(usuarioId: string, dto: CreateEmpresaDto): Promise<EmpresaResult> {
     if (dto.regime === RegimeEmpresa.MEI && dto.anexoSimples !== undefined) {
@@ -63,7 +69,7 @@ export class EmpresaService {
   }
 
   async update(usuarioId: string, id: string, dto: UpdateEmpresaDto): Promise<EmpresaResult> {
-    await this.findOwned(usuarioId, id);
+    const antes = await this.findOwned(usuarioId, id);
     const empresa = await this.prisma.empresa.update({
       where: { id },
       data: {
@@ -73,12 +79,39 @@ export class EmpresaService {
         ...(dto.ativa !== undefined && { ativa: dto.ativa }),
       },
     });
+
+    const afetaCalculoDas =
+      (dto.atividadeTipo !== undefined && dto.atividadeTipo !== antes.atividadeTipo) ||
+      (dto.anexoSimples !== undefined && dto.anexoSimples !== antes.anexoSimples);
+    if (afetaCalculoDas) {
+      await this.recalcularDasExistentes(empresa);
+    }
+
     return this.toResult(empresa);
   }
 
   async delete(usuarioId: string, id: string): Promise<void> {
     await this.findOwned(usuarioId, id);
     await this.prisma.empresa.delete({ where: { id } });
+  }
+
+  /**
+   * atividadeTipo (afeta o valor fixo do DAS MEI) e anexoSimples (afeta toda a
+   * tabela de faixas do Simples) alteram o resultado do DAS pra qualquer mês
+   * já apurado. Recalcula RBT12 (quando SIMPLES_ME, pois o DAS lê do cache) e
+   * DAS pra cada competência que já tem DASApuracao gravada.
+   */
+  private async recalcularDasExistentes(empresa: RawEmpresa): Promise<void> {
+    const apuracoes = await this.prisma.dASApuracao.findMany({
+      where: { empresaId: empresa.id },
+      select: { competencia: true },
+    });
+    for (const { competencia } of apuracoes) {
+      if (empresa.regime === RegimeEmpresa.SIMPLES_ME) {
+        await this.rbt12Service.recalcular(empresa.id, competencia);
+      }
+      await this.dasApuracaoService.recalcular(empresa.id, competencia);
+    }
   }
 
   private toResult(empresa: RawEmpresa): EmpresaResult {
