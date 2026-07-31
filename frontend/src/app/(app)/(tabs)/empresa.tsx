@@ -284,7 +284,11 @@ export default function EmpresaScreen() {
                   }
                   onLongPress={() => confirmarExclusao('distribuicao', item.id)}>
                   <ThemedText type="small">{formatMoeda(item.valor)}</ThemedText>
-                  <ThemedText type="small">{item.isento ? 'isento' : 'não isento'}</ThemedText>
+                  <ThemedText type="small">
+                    {item.isento
+                      ? 'isento'
+                      : `não isento — retido ${formatMoeda(item.impostoRetido)}`}
+                  </ThemedText>
                 </Pressable>
               ))}
             </ThemedView>

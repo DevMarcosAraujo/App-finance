@@ -34,7 +34,7 @@ describe('Pj (e2e)', () => {
         meiDasServicos: 86.05,
         meiDasComercioServicos: 87.05,
         limiteDividendoIsentoMensal: 50000,
-        aliquotaDividendoExcedente: 0,
+        aliquotaDividendoExcedente: 0.1,
       },
     });
     await prisma.anexoSimplesTabela.create({
@@ -184,9 +184,10 @@ describe('Pj (e2e)', () => {
       .set('Authorization', `Bearer ${accessToken}`)
       .send({ empresaId, valor: 60000, competencia: `${ANO_TESTE}-01-10` })
       .expect(201);
-    // valor 60000 > limiteDividendoIsentoMensal(50000) -> não isento
+    // valor 60000 > limiteDividendoIsentoMensal(50000) -> não isento,
+    // retenção de 10% sobre o valor total (60000 * 0.1 = 6000)
     expect(distribuicaoResponse.body.isento).toBe(false);
-    expect(distribuicaoResponse.body.impostoRetido).toBe(0);
+    expect(distribuicaoResponse.body.impostoRetido).toBe(6000);
   });
 
   it('rejeita editar ou excluir a empresa de outro usuário', async () => {

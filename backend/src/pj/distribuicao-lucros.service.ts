@@ -37,7 +37,7 @@ export class DistribuicaoLucrosService {
   ): Promise<DistribuicaoLucrosResult> {
     await this.empresaService.findOwned(usuarioId, dto.empresaId);
     const competencia = this.inicioMes(dto.competencia);
-    const isento = await this.calcularIsento(dto.valor, competencia);
+    const { isento, impostoRetido } = await this.calcularIsentoEImposto(dto.valor, competencia);
 
     const distribuicao = await this.prisma.distribuicaoLucros.create({
       data: {
@@ -45,18 +45,11 @@ export class DistribuicaoLucrosService {
         competencia,
         valor: dto.valor,
         isento,
-        impostoRetido: 0,
+        impostoRetido,
       },
     });
 
-    return {
-      id: distribuicao?.id,
-      empresaId: dto.empresaId,
-      competencia,
-      valor: dto.valor,
-      isento,
-      impostoRetido: 0,
-    };
+    return this.toResult(distribuicao);
   }
 
   async findByMonth(
@@ -85,7 +78,7 @@ export class DistribuicaoLucrosService {
     const novoValor = dto.valor !== undefined ? dto.valor : Number(existente.valor);
     const novaCompetencia =
       dto.competencia !== undefined ? this.inicioMes(dto.competencia) : existente.competencia;
-    const isento = await this.calcularIsento(novoValor, novaCompetencia);
+    const { isento, impostoRetido } = await this.calcularIsentoEImposto(novoValor, novaCompetencia);
 
     const distribuicao = await this.prisma.distribuicaoLucros.update({
       where: { id },
@@ -93,6 +86,7 @@ export class DistribuicaoLucrosService {
         ...(dto.valor !== undefined && { valor: dto.valor }),
         ...(dto.competencia !== undefined && { competencia: novaCompetencia }),
         isento,
+        impostoRetido,
       },
     });
 
@@ -115,11 +109,21 @@ export class DistribuicaoLucrosService {
     return distribuicao;
   }
 
-  private async calcularIsento(valor: number, competencia: Date): Promise<boolean> {
+  private async calcularIsentoEImposto(
+    valor: number,
+    competencia: Date,
+  ): Promise<{ isento: boolean; impostoRetido: number }> {
     const parametro = await this.parametroFiscalPjService.buscarPorAno(
       competencia.getUTCFullYear(),
     );
-    return valor <= parametro.limiteDividendoIsentoMensal;
+    const isento = valor <= parametro.limiteDividendoIsentoMensal;
+    if (isento) {
+      return { isento: true, impostoRetido: 0 };
+    }
+    // Retenção incide sobre o valor total distribuído no mês (não apenas
+    // sobre o excedente), conforme a regra vigente desde jan/2026.
+    const impostoRetido = Math.round(valor * parametro.aliquotaDividendoExcedente * 100) / 100;
+    return { isento: false, impostoRetido };
   }
 
   private inicioMes(data: string): Date {

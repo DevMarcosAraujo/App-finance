@@ -21,7 +21,9 @@ describe('DistribuicaoLucrosService', () => {
 
     const empresaService = { findOwned: jest.fn() } as unknown as EmpresaService;
     const parametroFiscalPjService = {
-      buscarPorAno: jest.fn().mockResolvedValue({ limiteDividendoIsentoMensal: 50000 }),
+      buscarPorAno: jest
+        .fn()
+        .mockResolvedValue({ limiteDividendoIsentoMensal: 50000, aliquotaDividendoExcedente: 0.1 }),
     } as unknown as ParametroFiscalPjService;
 
     return {
@@ -53,9 +55,29 @@ describe('DistribuicaoLucrosService', () => {
       });
     });
 
-    it('marca não isento quando o valor excede o limite, mas impostoRetido continua zero', async () => {
-      const { service, empresaService } = buildService();
+    it('marca não isento e retém 10% sobre o valor total quando excede o limite', async () => {
+      const { service, prisma, empresaService } = buildService();
       (empresaService.findOwned as jest.Mock).mockResolvedValue({ id: empresaId });
+      (prisma.distribuicaoLucros.create as jest.Mock).mockImplementation(({ data }) =>
+        Promise.resolve({ id: 'dl-1', ...data }),
+      );
+
+      const result = await service.create(usuarioId, {
+        empresaId,
+        valor: 60000,
+        competencia: '2026-07-15',
+      });
+
+      expect(result.isento).toBe(false);
+      expect(result.impostoRetido).toBe(6000);
+    });
+
+    it('retém 10% mesmo em valor logo acima do limite (fronteira)', async () => {
+      const { service, prisma, empresaService } = buildService();
+      (empresaService.findOwned as jest.Mock).mockResolvedValue({ id: empresaId });
+      (prisma.distribuicaoLucros.create as jest.Mock).mockImplementation(({ data }) =>
+        Promise.resolve({ id: 'dl-1', ...data }),
+      );
 
       const result = await service.create(usuarioId, {
         empresaId,
@@ -64,7 +86,7 @@ describe('DistribuicaoLucrosService', () => {
       });
 
       expect(result.isento).toBe(false);
-      expect(result.impostoRetido).toBe(0);
+      expect(result.impostoRetido).toBe(5000);
     });
   });
 
