@@ -23,6 +23,22 @@ export default function AppLayout() {
           name="lancar-livro-caixa"
           options={{ presentation: 'modal', headerShown: true, title: 'Livro-caixa' }}
         />
+        <Stack.Screen
+          name="cadastrar-empresa"
+          options={{ presentation: 'modal', headerShown: true, title: 'Empresa' }}
+        />
+        <Stack.Screen
+          name="lancar-faturamento"
+          options={{ presentation: 'modal', headerShown: true, title: 'Faturamento' }}
+        />
+        <Stack.Screen
+          name="lancar-pro-labore"
+          options={{ presentation: 'modal', headerShown: true, title: 'Pró-labore' }}
+        />
+        <Stack.Screen
+          name="lancar-distribuicao-lucros"
+          options={{ presentation: 'modal', headerShown: true, title: 'Distribuição de lucros' }}
+        />
       </Stack>
     </ThemeProvider>
   );
