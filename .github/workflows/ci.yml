@@ -1,0 +1,86 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: appfinance
+          POSTGRES_PASSWORD: appfinance
+          POSTGRES_DB: appfinance
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U appfinance"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgresql://appfinance:appfinance@localhost:5432/appfinance?schema=public
+      JWT_ACCESS_SECRET: ci-access-secret
+      JWT_ACCESS_EXPIRES: 15m
+      JWT_REFRESH_SECRET: ci-refresh-secret
+      JWT_REFRESH_EXPIRES: 30d
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - run: npm ci
+
+      - run: npx prisma generate --schema=backend/prisma/schema.prisma
+
+      - run: npx prisma migrate deploy --schema=backend/prisma/schema.prisma
+
+      - run: npx tsc --noEmit -p backend/tsconfig.json
+
+      - run: npm run test -w backend
+
+      # --runInBand: e2e suites each boot their own Nest app, and
+      # CarneLeaoModule.onModuleInit races to ensureSeed(2026, ...) — fine
+      # against the shared dev DB where that row already exists, but on a
+      # fresh CI database two suites can both see "not seeded" and collide
+      # on the unique constraint if Jest parallelizes workers.
+      - run: npm run test:e2e -w backend -- --runInBand
+
+  frontend:
+    runs-on: ubuntu-latest
+
+    env:
+      EXPO_NO_TELEMETRY: "1"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - run: npm ci
+
+      # expo-router generates frontend/.expo/types/router.d.ts from the
+      # app/ directory structure; it's git-ignored and only exists after a
+      # dev-server run, so tsc's typed routes fail on a fresh checkout
+      # without this step. Boots the web dev server just long enough for
+      # Metro to emit the file, then stops it (`timeout`'s 124 exit is
+      # expected here, not a failure).
+      - name: Regenerate expo-router typed routes
+        working-directory: frontend
+        run: timeout 45 npx expo start --web --port 8099 || true
+
+      - run: npx tsc --noEmit -p frontend/tsconfig.json
