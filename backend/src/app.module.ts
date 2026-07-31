@@ -7,6 +7,7 @@ import { WorkspaceModule } from './workspace/workspace.module';
 import { CategoriaModule } from './categoria/categoria.module';
 import { TransacaoModule } from './transacao/transacao.module';
 import { CarneLeaoModule } from './carne-leao/carne-leao.module';
+import { PjModule } from './pj/pj.module';
 
 @Module({
   imports: [
@@ -16,6 +17,7 @@ import { CarneLeaoModule } from './carne-leao/carne-leao.module';
     CategoriaModule,
     TransacaoModule,
     CarneLeaoModule,
+    PjModule,
   ],
   controllers: [AppController],
   providers: [AppService],

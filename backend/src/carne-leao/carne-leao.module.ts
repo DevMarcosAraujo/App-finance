@@ -24,6 +24,7 @@ import { PARAMETRO_FISCAL_PF_2026 } from './parametro-fiscal-pf-2026.constants';
     ApuracaoCarneLeaoService,
     ParametroFiscalPfService,
   ],
+  exports: [ParametroFiscalPfService],
 })
 export class CarneLeaoModule implements OnModuleInit {
   constructor(private readonly parametroFiscalPfService: ParametroFiscalPfService) {}
