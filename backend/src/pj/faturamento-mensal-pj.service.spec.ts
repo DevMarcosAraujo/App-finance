@@ -15,6 +15,8 @@ describe('FaturamentoMensalPjService', () => {
     const prisma = {
       empresa: { findUniqueOrThrow: jest.fn() },
       faturamentoMensalPJ: { upsert: jest.fn(), findUnique: jest.fn(), update: jest.fn(), delete: jest.fn() },
+      rBT12Cache: { findMany: jest.fn().mockResolvedValue([]) },
+      dASApuracao: { findMany: jest.fn().mockResolvedValue([]) },
     } as unknown as PrismaService;
 
     const empresaService = { findOwned: jest.fn() } as unknown as EmpresaService;
@@ -118,6 +120,50 @@ describe('FaturamentoMensalPjService', () => {
         NotFoundException,
       );
       expect(prisma.faturamentoMensalPJ.update).not.toHaveBeenCalled();
+    });
+
+    it('recalcula também os meses seguintes que já têm RBT12/DAS calculados', async () => {
+      const { service, prisma, rbt12Service, dasApuracaoService } = buildService();
+      const competenciaMes1 = new Date(Date.UTC(2026, 0, 1)); // janeiro/2026
+      const competenciaMes2 = new Date(Date.UTC(2026, 1, 1)); // fevereiro/2026
+
+      (prisma.faturamentoMensalPJ.findUnique as jest.Mock).mockResolvedValue({
+        id: 'f-1',
+        empresaId,
+        competencia: competenciaMes1,
+        empresa: { usuarioId },
+      });
+      (prisma.faturamentoMensalPJ.update as jest.Mock).mockResolvedValue({
+        id: 'f-1',
+        empresaId,
+        competencia: competenciaMes1,
+        receitaBrutaTotal: '20000',
+        receitaComNota: null,
+        receitaSemNota: null,
+        clienteTipoPredominante: null,
+      });
+      (prisma.empresa.findUniqueOrThrow as jest.Mock).mockResolvedValue({
+        regime: RegimeEmpresa.SIMPLES_ME,
+      });
+      // fevereiro/2026 já tem DASApuracao (calculado com RBT12 que incluía janeiro)
+      (prisma.dASApuracao.findMany as jest.Mock).mockResolvedValue([
+        { competencia: competenciaMes2 },
+      ]);
+      (prisma.rBT12Cache.findMany as jest.Mock).mockResolvedValue([]);
+
+      await service.update(usuarioId, 'f-1', { receitaBrutaTotal: 20000 });
+
+      expect(rbt12Service.recalcular).toHaveBeenNthCalledWith(1, empresaId, competenciaMes1);
+      expect(dasApuracaoService.recalcular).toHaveBeenNthCalledWith(1, empresaId, competenciaMes1);
+      expect(rbt12Service.recalcular).toHaveBeenNthCalledWith(2, empresaId, competenciaMes2);
+      expect(dasApuracaoService.recalcular).toHaveBeenNthCalledWith(2, empresaId, competenciaMes2);
+      expect(prisma.dASApuracao.findMany).toHaveBeenCalledWith({
+        where: {
+          empresaId,
+          competencia: { gt: competenciaMes1, lte: new Date(Date.UTC(2026, 11, 1)) },
+        },
+        select: { competencia: true },
+      });
     });
   });
 

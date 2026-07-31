@@ -128,6 +128,15 @@ export class FaturamentoMensalPjService {
   }
 
   private async recalcularCascata(empresaId: string, competencia: Date): Promise<void> {
+    await this.recalcularMes(empresaId, competencia);
+
+    const mesesSubsequentes = await this.buscarMesesComDadosDerivados(empresaId, competencia);
+    for (const mes of mesesSubsequentes) {
+      await this.recalcularMes(empresaId, mes);
+    }
+  }
+
+  private async recalcularMes(empresaId: string, competencia: Date): Promise<void> {
     const empresa = await this.prisma.empresa.findUniqueOrThrow({ where: { id: empresaId } });
     if (empresa.regime === RegimeEmpresa.SIMPLES_ME) {
       await this.rbt12Service.recalcular(empresaId, competencia);
@@ -136,6 +145,36 @@ export class FaturamentoMensalPjService {
     if (empresa.regime === RegimeEmpresa.MEI) {
       await this.acompanhamentoLimiteMeiService.recalcular(empresaId, competencia.getUTCFullYear());
     }
+  }
+
+  /**
+   * RBT12Service.recalcular calcula uma janela móvel de 12 meses terminando na
+   * competência informada. Editar/excluir o faturamento de um mês antigo pode
+   * deixar o RBT12/DAS desatualizado nos até 11 meses seguintes que já têm
+   * dado derivado calculado. Escopo intencionalmente limitado aos meses que já
+   * possuem RBT12Cache ou DASApuracao — não recalcula meses sem nenhum dado
+   * derivado ainda.
+   */
+  private async buscarMesesComDadosDerivados(empresaId: string, competencia: Date): Promise<Date[]> {
+    const limite = new Date(
+      Date.UTC(competencia.getUTCFullYear(), competencia.getUTCMonth() + 11, 1),
+    );
+    const [rbt12Rows, dasRows] = await Promise.all([
+      this.prisma.rBT12Cache.findMany({
+        where: { empresaId, competencia: { gt: competencia, lte: limite } },
+        select: { competencia: true },
+      }),
+      this.prisma.dASApuracao.findMany({
+        where: { empresaId, competencia: { gt: competencia, lte: limite } },
+        select: { competencia: true },
+      }),
+    ]);
+
+    const meses = new Map<string, Date>();
+    for (const row of [...rbt12Rows, ...dasRows]) {
+      meses.set(row.competencia.toISOString(), row.competencia);
+    }
+    return [...meses.values()].sort((a, b) => a.getTime() - b.getTime());
   }
 
   private inicioMes(data: string): Date {
