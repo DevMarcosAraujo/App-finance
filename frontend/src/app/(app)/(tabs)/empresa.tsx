@@ -129,9 +129,25 @@ export default function EmpresaScreen() {
 
         {empresa && (
           <ScrollView contentContainerStyle={styles.list}>
-            <ThemedText type="small" themeColor="textSecondary">
-              {empresa.nome} · {empresa.regime === 'MEI' ? 'MEI' : `Simples (Anexo ${empresa.anexoSimples})`}
-            </ThemedText>
+            <Pressable
+              onPress={() =>
+                router.push({
+                  pathname: '/cadastrar-empresa',
+                  params: {
+                    id: empresa.id,
+                    cnpj: empresa.cnpj,
+                    nome: empresa.nome,
+                    regime: empresa.regime,
+                    atividadeTipo: empresa.atividadeTipo,
+                    anexoSimples: empresa.anexoSimples ?? undefined,
+                    dataAbertura: empresa.dataAbertura.slice(0, 10),
+                  },
+                })
+              }>
+              <ThemedText type="small" themeColor="textSecondary">
+                {empresa.nome} · {empresa.regime === 'MEI' ? 'MEI' : `Simples (Anexo ${empresa.anexoSimples})`}
+              </ThemedText>
+            </Pressable>
 
             <ThemedView style={styles.secao}>
               <ThemedView style={styles.secaoHeader}>
