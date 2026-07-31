@@ -105,7 +105,12 @@ export function createEmpresa(input: EmpresaInput): Promise<Empresa> {
   return apiPost<Empresa>('/empresas', input);
 }
 
-export function updateEmpresa(id: string, input: Partial<EmpresaInput>): Promise<Empresa> {
+export function updateEmpresa(
+  id: string,
+  input: Partial<Pick<EmpresaInput, 'nome' | 'atividadeTipo' | 'anexoSimples'>> & {
+    ativa?: boolean;
+  },
+): Promise<Empresa> {
   return apiPatch<Empresa>(`/empresas/${id}`, input);
 }
 
@@ -134,7 +139,7 @@ export function createProLabore(input: ProLaboreInput): Promise<ProLabore> {
 
 export function updateProLabore(
   id: string,
-  input: Partial<ProLaboreInput>,
+  input: Partial<Omit<ProLaboreInput, 'empresaId'>>,
 ): Promise<ProLabore> {
   return apiPatch<ProLabore>(`/pro-labores/${id}`, input);
 }
@@ -151,7 +156,7 @@ export function createDistribuicaoLucros(
 
 export function updateDistribuicaoLucros(
   id: string,
-  input: Partial<DistribuicaoLucrosInput>,
+  input: Partial<Omit<DistribuicaoLucrosInput, 'empresaId'>>,
 ): Promise<DistribuicaoLucros> {
   return apiPatch<DistribuicaoLucros>(`/distribuicoes-lucros/${id}`, input);
 }
