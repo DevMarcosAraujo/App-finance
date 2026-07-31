@@ -33,6 +33,10 @@ function alertaLabel(alerta: string): string {
   return '';
 }
 
+function competenciaAAAAMMDD(ano: number, mes: number): string {
+  return `${ano}-${String(mes).padStart(2, '0')}-01`;
+}
+
 export default function EmpresaScreen() {
   const hoje = new Date();
   const [ano, setAno] = useState(hoje.getFullYear());
@@ -143,7 +147,7 @@ export default function EmpresaScreen() {
                             receitaBrutaTotal: String(faturamento.receitaBrutaTotal),
                             competencia: faturamento.competencia.slice(0, 10),
                           }
-                        : { empresaId: empresa.id },
+                        : { empresaId: empresa.id, competencia: competenciaAAAAMMDD(ano, mes) },
                     })
                   }
                   onLongPress={() =>
@@ -205,7 +209,7 @@ export default function EmpresaScreen() {
                   onPress={() =>
                     router.push({
                       pathname: '/lancar-pro-labore',
-                      params: { empresaId: empresa.id },
+                      params: { empresaId: empresa.id, competencia: competenciaAAAAMMDD(ano, mes) },
                     })
                   }>
                   <ThemedText type="smallBold">+</ThemedText>
@@ -241,7 +245,7 @@ export default function EmpresaScreen() {
                   onPress={() =>
                     router.push({
                       pathname: '/lancar-distribuicao-lucros',
-                      params: { empresaId: empresa.id },
+                      params: { empresaId: empresa.id, competencia: competenciaAAAAMMDD(ano, mes) },
                     })
                   }>
                   <ThemedText type="smallBold">+</ThemedText>
