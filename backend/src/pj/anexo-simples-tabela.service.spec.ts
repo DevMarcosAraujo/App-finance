@@ -1,4 +1,4 @@
-import { NotFoundException } from '@nestjs/common';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { AnexoSimples } from '@prisma/client';
 import { AnexoSimplesTabelaService } from './anexo-simples-tabela.service';
 import { PrismaService } from '../prisma/prisma.service';
@@ -38,6 +38,56 @@ describe('AnexoSimplesTabelaService', () => {
       await service.ensureSeed(2026, AnexoSimples.III, faixasTeste);
 
       expect(prisma.anexoSimplesTabela.create).not.toHaveBeenCalled();
+    });
+
+    it('rejeita faixas fora de ordem ascendente por rbt12Ate', async () => {
+      const { service, prisma } = buildService();
+      (prisma.anexoSimplesTabela.findUnique as jest.Mock).mockResolvedValue(null);
+
+      const faixasForaDeOrdem = [
+        { rbt12Ate: 360000, aliquota: 0.112, parcelaDeduzir: 9360 },
+        { rbt12Ate: 180000, aliquota: 0.06, parcelaDeduzir: 0 },
+      ];
+
+      await expect(
+        service.ensureSeed(2026, AnexoSimples.III, faixasForaDeOrdem),
+      ).rejects.toThrow(BadRequestException);
+      expect(prisma.anexoSimplesTabela.create).not.toHaveBeenCalled();
+    });
+
+    it('rejeita faixas com campo inválido ou faltante', async () => {
+      const { service, prisma } = buildService();
+      (prisma.anexoSimplesTabela.findUnique as jest.Mock).mockResolvedValue(null);
+
+      const faixasInvalidas = [
+        { rbt12Ate: 180000, aliquota: 1.5, parcelaDeduzir: 0 },
+      ];
+
+      await expect(
+        service.ensureSeed(2026, AnexoSimples.III, faixasInvalidas as never),
+      ).rejects.toThrow(BadRequestException);
+      expect(prisma.anexoSimplesTabela.create).not.toHaveBeenCalled();
+    });
+
+    it('rejeita array de faixas vazio', async () => {
+      const { service, prisma } = buildService();
+      (prisma.anexoSimplesTabela.findUnique as jest.Mock).mockResolvedValue(null);
+
+      await expect(service.ensureSeed(2026, AnexoSimples.III, [])).rejects.toThrow(
+        BadRequestException,
+      );
+      expect(prisma.anexoSimplesTabela.create).not.toHaveBeenCalled();
+    });
+
+    it('aceita faixas válidas e ordenadas', async () => {
+      const { service, prisma } = buildService();
+      (prisma.anexoSimplesTabela.findUnique as jest.Mock).mockResolvedValue(null);
+
+      await service.ensureSeed(2026, AnexoSimples.III, faixasTeste);
+
+      expect(prisma.anexoSimplesTabela.create).toHaveBeenCalledWith({
+        data: { anoCalendario: 2026, anexo: AnexoSimples.III, faixas: faixasTeste },
+      });
     });
   });
 
