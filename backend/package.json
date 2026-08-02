@@ -83,6 +83,9 @@
       "**/*.(t|j)sx?"
     ],
     "coverageDirectory": "../coverage",
-    "testEnvironment": "node"
+    "testEnvironment": "node",
+    "transformIgnorePatterns": [
+      "node_modules/(?!(@react-pdf|color-|yoga-layout))"
+    ]
   }
 }

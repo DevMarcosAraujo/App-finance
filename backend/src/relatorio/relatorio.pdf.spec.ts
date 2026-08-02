@@ -1,20 +1,4 @@
 import { TipoRelatorio } from '@prisma/client';
-
-jest.mock('@react-pdf/renderer', () => ({
-  Document: jest.fn(),
-  Page: jest.fn(),
-  Text: jest.fn(),
-  View: jest.fn(),
-  StyleSheet: {
-    create: (styles: any) => styles,
-  },
-  renderToBuffer: jest.fn(async () => {
-    // Return a buffer with %PDF magic bytes
-    const content = '%PDF-1.4\n%Comment\n';
-    return Buffer.from(content, 'utf-8');
-  }),
-}));
-
 import { renderRelatorioPdf } from './relatorio.pdf';
 
 describe('renderRelatorioPdf', () => {
