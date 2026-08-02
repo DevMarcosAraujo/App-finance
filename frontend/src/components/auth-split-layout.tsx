@@ -31,7 +31,10 @@ export function AuthSplitLayout({ children }: PropsWithChildren) {
     <ThemedView style={styles.container}>
       <View style={styles.splitRow}>
         <LinearGradient
-          colors={[theme.accent, theme.accentSoft]}
+          colors={[theme.accent, theme.accent, theme.accentSoft]}
+          locations={[0, 0.6, 1]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
           style={styles.gradientPanel}>
           <ThemedText type="title" style={styles.heroText}>
             {HERO_TEXT}
