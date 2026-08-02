@@ -81,13 +81,24 @@ export default function RelatoriosScreen() {
 
   const gerar = async () => {
     setIsGenerating(true);
+    let relatorio: RelatorioGerado;
     try {
       const { periodoInicio, periodoFim } = calcularPeriodo(tipo, ano, mes);
-      const relatorio = await gerarRelatorio({ tipo, periodoInicio, periodoFim });
+      relatorio = await gerarRelatorio({ tipo, periodoInicio, periodoFim });
       await refetch();
-      await salvarEcompartilhar(relatorio.id, `relatorio-${relatorio.id}.pdf`);
     } catch {
       Alert.alert('Erro', 'Não foi possível gerar o relatório.');
+      setIsGenerating(false);
+      return;
+    }
+
+    try {
+      await salvarEcompartilhar(relatorio.id, `relatorio-${relatorio.id}.pdf`);
+    } catch {
+      Alert.alert(
+        'Relatório gerado',
+        'O relatório foi gerado, mas não foi possível baixá-lo agora. Você pode baixá-lo novamente na lista abaixo.',
+      );
     } finally {
       setIsGenerating(false);
     }
