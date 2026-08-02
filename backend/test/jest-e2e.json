@@ -6,5 +6,8 @@
   "transform": {
     "^.+\\.(t|j)s$": "ts-jest"
   },
-  "setupFiles": ["dotenv/config"]
+  "setupFiles": ["dotenv/config"],
+  "moduleNameMapper": {
+    "^\\./relatorio\\.pdf$": "<rootDir>/mocks/relatorio.pdf.mock.ts"
+  }
 }

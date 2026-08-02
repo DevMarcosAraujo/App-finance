@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Alert, Platform, Pressable, StyleSheet } from 'react-native';
+import { Alert, Platform, Pressable, ScrollView, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
@@ -52,8 +52,10 @@ async function salvarEcompartilhar(id: string, nomeArquivo: string): Promise<voi
     const link = document.createElement('a');
     link.href = url;
     link.download = nomeArquivo;
+    document.body.appendChild(link);
     link.click();
-    URL.revokeObjectURL(url);
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 0);
     return;
   }
 
@@ -154,23 +156,28 @@ export default function RelatoriosScreen() {
           </ThemedText>
         </Pressable>
 
-        {isLoading && <ThemedText type="small">carregando histórico...</ThemedText>}
-        {error && (
-          <ThemedText themeColor="textSecondary">
-            erro ao carregar histórico: {error.message}
-          </ThemedText>
-        )}
+        <ScrollView
+          style={styles.historicoScroll}
+          contentContainerStyle={styles.historicoScrollContent}
+          showsVerticalScrollIndicator={false}>
+          {isLoading && <ThemedText type="small">carregando histórico...</ThemedText>}
+          {error && (
+            <ThemedText themeColor="textSecondary">
+              erro ao carregar histórico: {error.message}
+            </ThemedText>
+          )}
 
-        {relatorios.map((relatorio) => (
-          <Pressable key={relatorio.id} onPress={() => baixarNovamente(relatorio)}>
-            <ThemedView type="accentSoft" style={styles.historicoItem}>
-              <ThemedText type="smallBold">{relatorio.tipo}</ThemedText>
-              <ThemedText type="small" themeColor="textSecondary">
-                {formatPeriodo(relatorio)}
-              </ThemedText>
-            </ThemedView>
-          </Pressable>
-        ))}
+          {relatorios.map((relatorio) => (
+            <Pressable key={relatorio.id} onPress={() => baixarNovamente(relatorio)}>
+              <ThemedView type="accentSoft" style={styles.historicoItem}>
+                <ThemedText type="smallBold">{relatorio.tipo}</ThemedText>
+                <ThemedText type="small" themeColor="textSecondary">
+                  {formatPeriodo(relatorio)}
+                </ThemedText>
+              </ThemedView>
+            </Pressable>
+          ))}
+        </ScrollView>
       </SafeAreaView>
     </ThemedView>
   );
@@ -203,6 +210,12 @@ const styles = StyleSheet.create({
     borderRadius: Spacing.two,
     paddingVertical: Spacing.three,
     alignItems: 'center',
+  },
+  historicoScroll: {
+    flex: 1,
+  },
+  historicoScrollContent: {
+    gap: Spacing.two,
   },
   historicoItem: {
     borderRadius: Spacing.two,

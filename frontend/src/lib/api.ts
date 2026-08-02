@@ -100,13 +100,22 @@ export async function apiDelete<T>(path: string): Promise<T> {
   return request<T>(path, { method: 'DELETE' });
 }
 
-export async function apiGetBlob(path: string): Promise<Blob> {
+export async function apiGetBlob(path: string, isRetry = false): Promise<Blob> {
   const headers = new Headers();
   if (accessToken) {
     headers.set('Authorization', `Bearer ${accessToken}`);
   }
 
   const response = await fetch(`${API_URL}${path}`, { method: 'GET', headers });
+
+  if (response.status === 401 && !isRetry && refreshAccessToken) {
+    const newToken = await refreshAccessToken();
+    if (newToken) {
+      setAccessToken(newToken);
+      return apiGetBlob(path, true);
+    }
+    onUnauthorized?.();
+  }
 
   if (!response.ok) {
     throw new ApiError(
