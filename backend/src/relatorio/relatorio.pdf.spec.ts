@@ -1,5 +1,4 @@
 import { TipoRelatorio } from '@prisma/client';
-import { renderRelatorioPdf } from './relatorio.pdf';
 
 jest.mock('@react-pdf/renderer', () => ({
   Document: jest.fn(),
@@ -7,14 +6,16 @@ jest.mock('@react-pdf/renderer', () => ({
   Text: jest.fn(),
   View: jest.fn(),
   StyleSheet: {
-    create: jest.fn((styles) => styles),
+    create: (styles: any) => styles,
   },
   renderToBuffer: jest.fn(async () => {
-    // Return a fake PDF buffer that starts with %PDF magic bytes
-    const fakeContent = '%PDF-1.4\n%fake pdf content';
-    return Buffer.from(fakeContent, 'utf-8');
+    // Return a buffer with %PDF magic bytes
+    const content = '%PDF-1.4\n%Comment\n';
+    return Buffer.from(content, 'utf-8');
   }),
 }));
+
+import { renderRelatorioPdf } from './relatorio.pdf';
 
 describe('renderRelatorioPdf', () => {
   it('gera um buffer de PDF válido para uma agregação com dados', async () => {

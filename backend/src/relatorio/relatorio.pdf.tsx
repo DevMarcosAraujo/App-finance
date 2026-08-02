@@ -128,5 +128,5 @@ function RelatorioDocument({ tipo, periodoInicio, periodoFim, agregado }: Relato
 }
 
 export function renderRelatorioPdf(dados: RelatorioPdfDados): Promise<Buffer> {
-  return renderToBuffer(React.createElement(RelatorioDocument, dados));
+  return renderToBuffer(RelatorioDocument(dados));
 }
