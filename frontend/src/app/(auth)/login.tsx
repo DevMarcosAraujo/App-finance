@@ -6,10 +6,12 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useAuth } from '@/contexts/auth-context';
-import { Spacing } from '@/constants/theme';
+import { useTheme } from '@/hooks/use-theme';
+import { AuthCardMaxWidth, Spacing } from '@/constants/theme';
 
 export default function LoginScreen() {
   const { login } = useAuth();
+  const theme = useTheme();
   const [email, setEmail] = useState('');
   const [senha, setSenha] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -30,38 +32,44 @@ export default function LoginScreen() {
   return (
     <ThemedView style={styles.container}>
       <SafeAreaView style={styles.safeArea}>
-        <ThemedText type="title">Entrar</ThemedText>
+        <ThemedView type="backgroundElement" style={styles.card}>
+          <ThemedText type="subtitle">Entrar</ThemedText>
 
-        <TextInput
-          placeholder="email"
-          autoCapitalize="none"
-          keyboardType="email-address"
-          value={email}
-          onChangeText={setEmail}
-          style={styles.input}
-        />
-        <TextInput
-          placeholder="senha"
-          secureTextEntry
-          value={senha}
-          onChangeText={setSenha}
-          style={styles.input}
-        />
+          <ThemedView type="backgroundSelected" style={styles.inputWrapper}>
+            <TextInput
+              placeholder="email"
+              autoCapitalize="none"
+              keyboardType="email-address"
+              value={email}
+              onChangeText={setEmail}
+              style={styles.input}
+            />
+          </ThemedView>
+          <ThemedView type="backgroundSelected" style={styles.inputWrapper}>
+            <TextInput
+              placeholder="senha"
+              secureTextEntry
+              value={senha}
+              onChangeText={setSenha}
+              style={styles.input}
+            />
+          </ThemedView>
 
-        {error && <ThemedText themeColor="textSecondary">{error}</ThemedText>}
+          {error && <ThemedText themeColor="expense">{error}</ThemedText>}
 
-        <Pressable
-          onPress={handleSubmit}
-          disabled={isSubmitting}
-          style={styles.button}>
-          <ThemedText type="smallBold">
-            {isSubmitting ? 'entrando...' : 'entrar'}
-          </ThemedText>
-        </Pressable>
+          <Pressable
+            onPress={handleSubmit}
+            disabled={isSubmitting}
+            style={[styles.button, { backgroundColor: theme.accent }]}>
+            <ThemedText type="smallBold" themeColor="background">
+              {isSubmitting ? 'entrando...' : 'entrar'}
+            </ThemedText>
+          </Pressable>
 
-        <Link href="/(auth)/register">
-          <ThemedText type="linkPrimary">criar uma conta</ThemedText>
-        </Link>
+          <Link href="/(auth)/register" style={styles.link}>
+            <ThemedText type="linkPrimary">criar uma conta</ThemedText>
+          </Link>
+        </ThemedView>
       </SafeAreaView>
     </ThemedView>
   );
@@ -72,19 +80,28 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     justifyContent: 'center',
+    alignItems: 'center',
     paddingHorizontal: Spacing.four,
+  },
+  card: {
+    width: '100%',
+    maxWidth: AuthCardMaxWidth,
+    borderRadius: Spacing.three,
+    padding: Spacing.five,
     gap: Spacing.three,
   },
-  input: {
-    borderWidth: 1,
-    borderColor: '#8888',
+  inputWrapper: {
     borderRadius: Spacing.two,
+  },
+  input: {
     padding: Spacing.three,
   },
   button: {
     alignItems: 'center',
     padding: Spacing.three,
     borderRadius: Spacing.two,
-    backgroundColor: '#3c87f7',
+  },
+  link: {
+    alignSelf: 'center',
   },
 });
