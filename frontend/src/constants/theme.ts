@@ -16,6 +16,8 @@ export const Colors = {
     textSecondary: '#60646C',
     income: '#16A34A',
     expense: '#DC2626',
+    accent: '#7C3AED',
+    accentSoft: '#EDE4FD',
   },
   dark: {
     text: '#ffffff',
@@ -25,6 +27,8 @@ export const Colors = {
     textSecondary: '#B0B4BA',
     income: '#4ADE80',
     expense: '#F87171',
+    accent: '#A78BFA',
+    accentSoft: '#2E2447',
   },
 } as const;
 
