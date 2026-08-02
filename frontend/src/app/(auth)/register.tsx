@@ -1,13 +1,13 @@
 import { Link } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, StyleSheet, TextInput } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { AuthSplitLayout } from '@/components/auth-split-layout';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useAuth } from '@/contexts/auth-context';
 import { useTheme } from '@/hooks/use-theme';
-import { AuthCardMaxWidth, Spacing } from '@/constants/theme';
+import { Spacing } from '@/constants/theme';
 
 export default function RegisterScreen() {
   const { register } = useAuth();
@@ -38,97 +38,79 @@ export default function RegisterScreen() {
   };
 
   return (
-    <ThemedView style={styles.container}>
-      <SafeAreaView style={styles.safeArea}>
-        <ThemedView type="backgroundElement" style={styles.card}>
-          <ThemedText type="subtitle">Criar conta</ThemedText>
+    <AuthSplitLayout>
+      <ThemedText type="subtitle">Criar conta</ThemedText>
 
-          <ThemedView type="backgroundSelected" style={styles.inputWrapper}>
-            <TextInput
-              placeholder="nome"
-              value={nome}
-              onChangeText={setNome}
-              style={[styles.input, { color: theme.text }]}
-              placeholderTextColor={theme.textSecondary}
-            />
-          </ThemedView>
-          <ThemedView type="backgroundSelected" style={styles.inputWrapper}>
-            <TextInput
-              placeholder="email"
-              autoCapitalize="none"
-              keyboardType="email-address"
-              value={email}
-              onChangeText={setEmail}
-              style={[styles.input, { color: theme.text }]}
-              placeholderTextColor={theme.textSecondary}
-            />
-          </ThemedView>
-          <ThemedView type="backgroundSelected" style={styles.inputWrapper}>
-            <TextInput
-              placeholder="cpf"
-              keyboardType="numeric"
-              value={cpf}
-              onChangeText={setCpf}
-              style={[styles.input, { color: theme.text }]}
-              placeholderTextColor={theme.textSecondary}
-            />
-          </ThemedView>
-          <ThemedView type="backgroundSelected" style={styles.inputWrapper}>
-            <TextInput
-              placeholder="senha"
-              secureTextEntry
-              value={senha}
-              onChangeText={setSenha}
-              style={[styles.input, { color: theme.text }]}
-              placeholderTextColor={theme.textSecondary}
-            />
-          </ThemedView>
-          <ThemedView type="backgroundSelected" style={styles.inputWrapper}>
-            <TextInput
-              placeholder="confirmar senha"
-              secureTextEntry
-              value={confirmarSenha}
-              onChangeText={setConfirmarSenha}
-              style={[styles.input, { color: theme.text }]}
-              placeholderTextColor={theme.textSecondary}
-            />
-          </ThemedView>
+      <ThemedView type="backgroundSelected" style={styles.inputWrapper}>
+        <TextInput
+          placeholder="nome"
+          value={nome}
+          onChangeText={setNome}
+          style={[styles.input, { color: theme.text }]}
+          placeholderTextColor={theme.textSecondary}
+        />
+      </ThemedView>
+      <ThemedView type="backgroundSelected" style={styles.inputWrapper}>
+        <TextInput
+          placeholder="email"
+          autoCapitalize="none"
+          keyboardType="email-address"
+          value={email}
+          onChangeText={setEmail}
+          style={[styles.input, { color: theme.text }]}
+          placeholderTextColor={theme.textSecondary}
+        />
+      </ThemedView>
+      <ThemedView type="backgroundSelected" style={styles.inputWrapper}>
+        <TextInput
+          placeholder="cpf"
+          keyboardType="numeric"
+          value={cpf}
+          onChangeText={setCpf}
+          style={[styles.input, { color: theme.text }]}
+          placeholderTextColor={theme.textSecondary}
+        />
+      </ThemedView>
+      <ThemedView type="backgroundSelected" style={styles.inputWrapper}>
+        <TextInput
+          placeholder="senha"
+          secureTextEntry
+          value={senha}
+          onChangeText={setSenha}
+          style={[styles.input, { color: theme.text }]}
+          placeholderTextColor={theme.textSecondary}
+        />
+      </ThemedView>
+      <ThemedView type="backgroundSelected" style={styles.inputWrapper}>
+        <TextInput
+          placeholder="confirmar senha"
+          secureTextEntry
+          value={confirmarSenha}
+          onChangeText={setConfirmarSenha}
+          style={[styles.input, { color: theme.text }]}
+          placeholderTextColor={theme.textSecondary}
+        />
+      </ThemedView>
 
-          {error && <ThemedText themeColor="expense">{error}</ThemedText>}
+      {error && <ThemedText themeColor="expense">{error}</ThemedText>}
 
-          <Pressable
-            onPress={handleSubmit}
-            disabled={isSubmitting}
-            style={[styles.button, { backgroundColor: theme.accent }]}>
-            <ThemedText type="smallBold" themeColor="background">
-              {isSubmitting ? 'criando...' : 'criar conta'}
-            </ThemedText>
-          </Pressable>
+      <Pressable
+        onPress={handleSubmit}
+        disabled={isSubmitting}
+        style={[styles.button, { backgroundColor: theme.accent }]}>
+        <ThemedText type="smallBold" themeColor="background">
+          {isSubmitting ? 'criando...' : 'criar conta'}
+        </ThemedText>
+      </Pressable>
 
-          <Link href="/(auth)/login" style={styles.link}>
-            <ThemedText type="linkPrimary">já tenho conta</ThemedText>
-          </Link>
-        </ThemedView>
-      </SafeAreaView>
-    </ThemedView>
+      <Link href="/(auth)/login" style={styles.link}>
+        <ThemedText type="linkPrimary">já tenho conta</ThemedText>
+      </Link>
+    </AuthSplitLayout>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  safeArea: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: Spacing.four,
-  },
-  card: {
-    width: '100%',
-    maxWidth: AuthCardMaxWidth,
-    borderRadius: Spacing.three,
-    padding: Spacing.five,
-    gap: Spacing.three,
-  },
   inputWrapper: {
     borderRadius: Spacing.two,
   },
