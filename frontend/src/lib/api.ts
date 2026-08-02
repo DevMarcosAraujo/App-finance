@@ -99,3 +99,21 @@ export async function apiPatch<T>(path: string, body?: unknown): Promise<T> {
 export async function apiDelete<T>(path: string): Promise<T> {
   return request<T>(path, { method: 'DELETE' });
 }
+
+export async function apiGetBlob(path: string): Promise<Blob> {
+  const headers = new Headers();
+  if (accessToken) {
+    headers.set('Authorization', `Bearer ${accessToken}`);
+  }
+
+  const response = await fetch(`${API_URL}${path}`, { method: 'GET', headers });
+
+  if (!response.ok) {
+    throw new ApiError(
+      `GET ${path} failed with status ${response.status}`,
+      response.status,
+    );
+  }
+
+  return response.blob();
+}
