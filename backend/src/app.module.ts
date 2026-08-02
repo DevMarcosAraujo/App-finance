@@ -8,6 +8,7 @@ import { CategoriaModule } from './categoria/categoria.module';
 import { TransacaoModule } from './transacao/transacao.module';
 import { CarneLeaoModule } from './carne-leao/carne-leao.module';
 import { PjModule } from './pj/pj.module';
+import { RelatorioModule } from './relatorio/relatorio.module';
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import { PjModule } from './pj/pj.module';
     TransacaoModule,
     CarneLeaoModule,
     PjModule,
+    RelatorioModule,
   ],
   controllers: [AppController],
   providers: [AppService],
