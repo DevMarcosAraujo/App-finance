@@ -29,6 +29,11 @@ export default function AppTabs() {
         <NativeTabs.Trigger.Label>Empresa</NativeTabs.Trigger.Label>
         <NativeTabs.Trigger.Icon sf="building.2" md="apartment" />
       </NativeTabs.Trigger>
+
+      <NativeTabs.Trigger name="relatorios">
+        <NativeTabs.Trigger.Label>Relatórios</NativeTabs.Trigger.Label>
+        <NativeTabs.Trigger.Icon sf="doc.text" md="description" />
+      </NativeTabs.Trigger>
     </NativeTabs>
   );
 }
