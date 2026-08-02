@@ -1,13 +1,13 @@
 import { Link } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, StyleSheet, TextInput } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { AuthSplitLayout } from '@/components/auth-split-layout';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useAuth } from '@/contexts/auth-context';
 import { useTheme } from '@/hooks/use-theme';
-import { AuthCardMaxWidth, Spacing } from '@/constants/theme';
+import { Spacing } from '@/constants/theme';
 
 export default function LoginScreen() {
   const { login } = useAuth();
@@ -30,68 +30,50 @@ export default function LoginScreen() {
   };
 
   return (
-    <ThemedView style={styles.container}>
-      <SafeAreaView style={styles.safeArea}>
-        <ThemedView type="backgroundElement" style={styles.card}>
-          <ThemedText type="subtitle">Entrar</ThemedText>
+    <AuthSplitLayout>
+      <ThemedText type="subtitle">Entrar</ThemedText>
 
-          <ThemedView type="backgroundSelected" style={styles.inputWrapper}>
-            <TextInput
-              placeholder="email"
-              autoCapitalize="none"
-              keyboardType="email-address"
-              value={email}
-              onChangeText={setEmail}
-              style={[styles.input, { color: theme.text }]}
-              placeholderTextColor={theme.textSecondary}
-            />
-          </ThemedView>
-          <ThemedView type="backgroundSelected" style={styles.inputWrapper}>
-            <TextInput
-              placeholder="senha"
-              secureTextEntry
-              value={senha}
-              onChangeText={setSenha}
-              style={[styles.input, { color: theme.text }]}
-              placeholderTextColor={theme.textSecondary}
-            />
-          </ThemedView>
+      <ThemedView type="backgroundSelected" style={styles.inputWrapper}>
+        <TextInput
+          placeholder="email"
+          autoCapitalize="none"
+          keyboardType="email-address"
+          value={email}
+          onChangeText={setEmail}
+          style={[styles.input, { color: theme.text }]}
+          placeholderTextColor={theme.textSecondary}
+        />
+      </ThemedView>
+      <ThemedView type="backgroundSelected" style={styles.inputWrapper}>
+        <TextInput
+          placeholder="senha"
+          secureTextEntry
+          value={senha}
+          onChangeText={setSenha}
+          style={[styles.input, { color: theme.text }]}
+          placeholderTextColor={theme.textSecondary}
+        />
+      </ThemedView>
 
-          {error && <ThemedText themeColor="expense">{error}</ThemedText>}
+      {error && <ThemedText themeColor="expense">{error}</ThemedText>}
 
-          <Pressable
-            onPress={handleSubmit}
-            disabled={isSubmitting}
-            style={[styles.button, { backgroundColor: theme.accent }]}>
-            <ThemedText type="smallBold" themeColor="background">
-              {isSubmitting ? 'entrando...' : 'entrar'}
-            </ThemedText>
-          </Pressable>
+      <Pressable
+        onPress={handleSubmit}
+        disabled={isSubmitting}
+        style={[styles.button, { backgroundColor: theme.accent }]}>
+        <ThemedText type="smallBold" themeColor="background">
+          {isSubmitting ? 'entrando...' : 'entrar'}
+        </ThemedText>
+      </Pressable>
 
-          <Link href="/(auth)/register" style={styles.link}>
-            <ThemedText type="linkPrimary">criar uma conta</ThemedText>
-          </Link>
-        </ThemedView>
-      </SafeAreaView>
-    </ThemedView>
+      <Link href="/(auth)/register" style={styles.link}>
+        <ThemedText type="linkPrimary">criar uma conta</ThemedText>
+      </Link>
+    </AuthSplitLayout>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  safeArea: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: Spacing.four,
-  },
-  card: {
-    width: '100%',
-    maxWidth: AuthCardMaxWidth,
-    borderRadius: Spacing.three,
-    padding: Spacing.five,
-    gap: Spacing.three,
-  },
   inputWrapper: {
     borderRadius: Spacing.two,
   },
