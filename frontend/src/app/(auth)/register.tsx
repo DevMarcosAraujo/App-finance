@@ -48,7 +48,8 @@ export default function RegisterScreen() {
               placeholder="nome"
               value={nome}
               onChangeText={setNome}
-              style={styles.input}
+              style={[styles.input, { color: theme.text }]}
+              placeholderTextColor={theme.textSecondary}
             />
           </ThemedView>
           <ThemedView type="backgroundSelected" style={styles.inputWrapper}>
@@ -58,7 +59,8 @@ export default function RegisterScreen() {
               keyboardType="email-address"
               value={email}
               onChangeText={setEmail}
-              style={styles.input}
+              style={[styles.input, { color: theme.text }]}
+              placeholderTextColor={theme.textSecondary}
             />
           </ThemedView>
           <ThemedView type="backgroundSelected" style={styles.inputWrapper}>
@@ -67,7 +69,8 @@ export default function RegisterScreen() {
               keyboardType="numeric"
               value={cpf}
               onChangeText={setCpf}
-              style={styles.input}
+              style={[styles.input, { color: theme.text }]}
+              placeholderTextColor={theme.textSecondary}
             />
           </ThemedView>
           <ThemedView type="backgroundSelected" style={styles.inputWrapper}>
@@ -76,7 +79,8 @@ export default function RegisterScreen() {
               secureTextEntry
               value={senha}
               onChangeText={setSenha}
-              style={styles.input}
+              style={[styles.input, { color: theme.text }]}
+              placeholderTextColor={theme.textSecondary}
             />
           </ThemedView>
           <ThemedView type="backgroundSelected" style={styles.inputWrapper}>
@@ -85,7 +89,8 @@ export default function RegisterScreen() {
               secureTextEntry
               value={confirmarSenha}
               onChangeText={setConfirmarSenha}
-              style={styles.input}
+              style={[styles.input, { color: theme.text }]}
+              placeholderTextColor={theme.textSecondary}
             />
           </ThemedView>
 

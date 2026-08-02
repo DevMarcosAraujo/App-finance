@@ -42,7 +42,8 @@ export default function LoginScreen() {
               keyboardType="email-address"
               value={email}
               onChangeText={setEmail}
-              style={styles.input}
+              style={[styles.input, { color: theme.text }]}
+              placeholderTextColor={theme.textSecondary}
             />
           </ThemedView>
           <ThemedView type="backgroundSelected" style={styles.inputWrapper}>
@@ -51,7 +52,8 @@ export default function LoginScreen() {
               secureTextEntry
               value={senha}
               onChangeText={setSenha}
-              style={styles.input}
+              style={[styles.input, { color: theme.text }]}
+              placeholderTextColor={theme.textSecondary}
             />
           </ThemedView>
 

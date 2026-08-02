@@ -32,7 +32,9 @@ Relatórios.
 - Título: usa `ThemedText type="subtitle"` (32px) em vez do `type="title"`
   atual (48px) — o tamanho atual é grande demais dentro de um card
   pequeno.
-- Inputs: fundo `backgroundElement`, sem borda cinza genérica (remove
+- Inputs: fundo `backgroundSelected` (um tom acima do card, para os campos
+  ficarem visualmente distinguíveis dele — `backgroundElement` nos dois
+  deixaria card e inputs indistinguíveis), sem borda cinza genérica (remove
   `borderColor: '#8888'`), cantos arredondados (`Spacing.two`), padding
   interno (`Spacing.three`).
 - Botão ("entrar" / "criar conta"): `backgroundColor` usa `theme.accent`
